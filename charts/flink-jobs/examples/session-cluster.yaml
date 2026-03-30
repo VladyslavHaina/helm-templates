@@ -1,0 +1,67 @@
+# Session cluster with 3 streaming jobs
+# Usage: helm install flink ../flink-jobs -f session-cluster.yaml
+
+cluster:
+  name: stream-processing
+
+mode: session
+
+image:
+  repository: my-registry/flink-jobs
+  tag: "1.19-custom"
+
+flinkVersion: v1_19
+
+jobManager:
+  replicas: 1
+  resources:
+    limits:
+      cpu: "2"
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 2Gi
+
+taskManager:
+  replicas: 4
+  resources:
+    limits:
+      cpu: "4"
+      memory: 8Gi
+    requests:
+      cpu: "2"
+      memory: 4Gi
+  taskSlots: 2
+
+flinkConfiguration:
+  taskmanager.numberOfTaskSlots: "2"
+  state.backend: rocksdb
+  state.checkpoints.dir: "s3://my-bucket/flink/checkpoints"
+  state.savepoints.dir: "s3://my-bucket/flink/savepoints"
+  execution.checkpointing.interval: "60000"
+  execution.checkpointing.min-pause: "30000"
+
+sessionJobs:
+  - name: user-events
+    jarURI: "s3://my-bucket/flink-jobs/user-events-1.0.0.jar"
+    parallelism: 4
+    entryClass: com.example.UserEventsJob
+    upgradeMode: last-state
+
+  - name: order-events
+    jarURI: "s3://my-bucket/flink-jobs/order-events-1.0.0.jar"
+    parallelism: 2
+    entryClass: com.example.OrderEventsJob
+    upgradeMode: last-state
+
+  - name: analytics-aggregation
+    jarURI: "s3://my-bucket/flink-jobs/analytics-1.0.0.jar"
+    parallelism: 2
+    entryClass: com.example.AnalyticsJob
+    upgradeMode: savepoint
+
+serviceAccount:
+  create: true
+  name: flink
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/flink-role

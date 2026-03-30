@@ -1,0 +1,19 @@
+{{- if .Values.istio.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ include "statefulservice.fullname" . }}
+  labels:
+    {{- include "statefulservice.labels" . | nindent 4 }}
+spec:
+  hosts:
+    {{- range .Values.istio.virtualService.hosts }}
+    - {{ . | quote }}
+    {{- end }}
+  gateways:
+    {{- range .Values.istio.virtualService.gateways }}
+    - {{ . | quote }}
+    {{- end }}
+  http:
+    {{- toYaml .Values.istio.virtualService.http | nindent 4 }}
+{{- end }}

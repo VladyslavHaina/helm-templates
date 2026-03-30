@@ -1,0 +1,23 @@
+Network policies deployed in {{ .Release.Namespace }}:
+
+{{- if .Values.denyAllIngress.enabled }}
+  [x] Deny all ingress (default)
+{{- end }}
+{{- if .Values.denyAllEgress.enabled }}
+  [x] Deny all egress (default)
+{{- end }}
+{{- if .Values.allowSameNamespace.enabled }}
+  [x] Allow same-namespace traffic
+{{- end }}
+{{- if .Values.allowFromMonitoring.enabled }}
+  [x] Allow from monitoring ({{ .Values.allowFromMonitoring.namespaceLabel.value }})
+{{- end }}
+{{- if .Values.allowFromServiceMesh.enabled }}
+  [x] Allow from service mesh ({{ .Values.allowFromServiceMesh.namespaceLabel.value }})
+{{- end }}
+{{- if .Values.allowDNS.enabled }}
+  [x] Allow DNS egress
+{{- end }}
+
+Verify:
+  kubectl get networkpolicies -n {{ .Release.Namespace }}

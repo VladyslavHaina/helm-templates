@@ -1,0 +1,54 @@
+# GCP GKE with Workload Identity, standard Ingress, and GCP Secret Manager
+# Usage: helm install my-api ../microservice -f gcp-workload-identity.yaml
+
+app:
+  name: user-service
+
+image:
+  repository: gcr.io/my-project/user-service
+  tag: "1.5.0"
+
+replicaCount: 2
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+serviceAccount:
+  create: true
+  annotations:
+    iam.gke.io/gcp-service-account: user-service@my-project.iam.gserviceaccount.com
+
+secrets:
+  csi:
+    enabled: true
+    provider: gcp
+    gcp:
+      projectId: my-project
+      secrets:
+        - resourceName: "projects/my-project/secrets/user-service-db/versions/latest"
+          objectName: db-credentials
+        - resourceName: "projects/my-project/secrets/user-service-api-key/versions/latest"
+          objectName: api-key
+
+ingress:
+  enabled: true
+  className: gce
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: user-service-ip
+    networking.gke.io/managed-certificates: user-service-cert
+  hosts:
+    - host: users.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+service:
+  enabled: true
+  type: NodePort
+  port: 80
+  targetPort: 3000

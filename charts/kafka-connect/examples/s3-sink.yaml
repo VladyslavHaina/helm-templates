@@ -1,0 +1,54 @@
+# S3 Sink connector — archive Kafka topics to S3
+# Usage: helm install s3-sink ../kafka-connect -f s3-sink.yaml
+
+app:
+  name: s3-sink-connect
+
+replicaCount: 2
+
+kafka:
+  bootstrapServers: "kafka-bootstrap:9092"
+
+plugins:
+  enabled: true
+  confluentHub:
+    - name: kafka-connect-s3
+      owner: confluentinc
+      version: "10.5.13"
+
+connectorDeployJob:
+  enabled: true
+
+connectors:
+  - name: s3-sink
+    config:
+      connector.class: io.confluent.connect.s3.S3SinkConnector
+      tasks.max: "4"
+      topics: "events.users,events.orders,events.payments"
+      s3.bucket.name: "my-data-lake"
+      s3.region: "us-east-1"
+      storage.class: io.confluent.connect.s3.storage.S3Storage
+      format.class: io.confluent.connect.s3.format.parquet.ParquetFormat
+      partitioner.class: io.confluent.connect.storage.partitioner.TimeBasedPartitioner
+      partition.duration.ms: "3600000"
+      path.format: "'year'=YYYY/'month'=MM/'day'=dd/'hour'=HH"
+      locale: "en-US"
+      timezone: "UTC"
+      flush.size: "10000"
+      rotate.interval.ms: "600000"
+      timestamp.extractor: RecordField
+      timestamp.field: created_at
+      behavior.on.null.values: ignore
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/kafka-connect-s3-role
+
+resources:
+  limits:
+    cpu: "2"
+    memory: 4Gi
+  requests:
+    cpu: 500m
+    memory: 2Gi

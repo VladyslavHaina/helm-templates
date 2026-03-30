@@ -1,0 +1,98 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: {{ include "flink-jobs.fullname" . }}
+  labels:
+    {{- include "flink-jobs.labels" . | nindent 4 }}
+  {{- with .Values.podTemplate.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+  imagePullPolicy: {{ .Values.image.pullPolicy }}
+  flinkVersion: {{ .Values.flinkVersion }}
+  serviceAccount: {{ include "flink-jobs.serviceAccountName" . }}
+  flinkConfiguration:
+    {{- range $key, $value := .Values.flinkConfiguration }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  jobManager:
+    replicas: {{ .Values.jobManager.replicas }}
+    resource:
+      cpu: {{ .Values.jobManager.resources.requests.cpu }}
+      memory: {{ .Values.jobManager.resources.requests.memory }}
+    {{- with .Values.jobManager.podTemplate }}
+    podTemplate:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  taskManager:
+    replicas: {{ .Values.taskManager.replicas }}
+    resource:
+      cpu: {{ .Values.taskManager.resources.requests.cpu }}
+      memory: {{ .Values.taskManager.resources.requests.memory }}
+    {{- with .Values.taskManager.podTemplate }}
+    podTemplate:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- if eq .Values.mode "application" }}
+  job:
+    jarURI: {{ .Values.applicationJob.jarURI | quote }}
+    {{- if .Values.applicationJob.entryClass }}
+    entryClass: {{ .Values.applicationJob.entryClass | quote }}
+    {{- end }}
+    parallelism: {{ .Values.applicationJob.parallelism }}
+    upgradeMode: {{ .Values.applicationJob.upgradeMode }}
+    allowNonRestoredState: {{ .Values.applicationJob.allowNonRestoredState }}
+    {{- with .Values.applicationJob.args }}
+    args:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  podTemplate:
+    metadata:
+      {{- with .Values.podTemplate.labels }}
+      labels:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.podTemplate.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: flink-main-container
+          {{- with .Values.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.extraVolumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.extraVolumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if .Values.logging }}
+  logConfiguration:
+    log4j-console.properties: |
+      rootLogger.level = {{ .Values.logging.rootLoggerLevel }}
+      rootLogger.appenderRef.console.ref = ConsoleAppender
+      appender.console.name = ConsoleAppender
+      appender.console.type = CONSOLE
+      appender.console.layout.type = PatternLayout
+      appender.console.layout.pattern = {{ .Values.logging.log4jConsolePattern }}
+      logger.akka.name = akka
+      logger.akka.level = INFO
+      logger.kafka.name = org.apache.kafka
+      logger.kafka.level = WARN
+      {{- range $name, $level := .Values.logging.extraLoggers }}
+      logger.{{ $name | replace "." "_" }}.name = {{ $name }}
+      logger.{{ $name | replace "." "_" }}.level = {{ $level }}
+      {{- end }}
+  {{- end }}

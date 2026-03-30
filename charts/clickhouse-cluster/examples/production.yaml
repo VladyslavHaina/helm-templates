@@ -1,0 +1,121 @@
+# Production ClickHouse — 2 shards × 3 replicas, OTEL + RBAC
+# Usage: helm install clickhouse ../clickhouse-cluster -f production.yaml
+
+cluster:
+  name: prod-analytics
+
+clickhouse:
+  image: clickhouse/clickhouse-server:24.8
+  topology:
+    shards: 2
+    replicas: 3
+  resources:
+    limits:
+      cpu: "8"
+      memory: 32Gi
+    requests:
+      cpu: "4"
+      memory: 16Gi
+  storage:
+    data:
+      size: 500Gi
+      storageClass: gp3
+    logs:
+      size: 50Gi
+      storageClass: gp3
+  prometheus:
+    enabled: true
+  users:
+    admin:
+      password: ""  # Use K8s Secret
+      networks:
+        ip:
+          - "10.0.0.0/8"
+    extra:
+      - name: otel_writer
+        password: ""
+        profile: otel_writer_profile
+        networks:
+          ip: ["10.0.0.0/8"]
+      - name: grafana_reader
+        password: ""
+        profile: readonly
+        networks:
+          ip: ["10.0.0.0/8"]
+  profiles:
+    default:
+      max_memory_usage: 20000000000
+      max_execution_time: 600
+    readonly:
+      readonly: 1
+    extra:
+      - name: otel_writer_profile
+        settings:
+          max_memory_usage: 10000000000
+          max_insert_threads: 4
+
+keeper:
+  enabled: true
+  replicas: 3
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  storage:
+    size: 20Gi
+    storageClass: gp3
+
+rbacJob:
+  enabled: true
+  users:
+    - name: app_user
+      identifiedByEnv: APP_USER_PASSWORD
+    - name: readonly_user
+      identifiedByEnv: READONLY_PASSWORD
+  roles:
+    - name: app_role
+      grants:
+        - "SELECT, INSERT ON prod_db.*"
+      users:
+        - app_user
+    - name: readonly_role
+      grants:
+        - "SELECT ON prod_db.*"
+      users:
+        - readonly_user
+  env:
+    - name: APP_USER_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: clickhouse-users
+          key: app-password
+    - name: READONLY_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: clickhouse-users
+          key: readonly-password
+  syncWave: "3"
+
+otelCollector:
+  enabled: true
+  replicas: 3
+  resources:
+    limits:
+      cpu: "2"
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  exporter:
+    database: otel
+    ttl: "168h"
+    passwordSecretRef:
+      name: clickhouse-users
+      key: otel-password
+  rbac:
+    enabled: true
+  serviceMonitor:
+    enabled: true

@@ -1,0 +1,23 @@
+{{- range .Values.destinationRules }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ .name }}
+  labels:
+    {{- include "istio-routing.labels" $ | nindent 4 }}
+spec:
+  host: {{ .host }}
+  {{- with .trafficPolicy }}
+  trafficPolicy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if .subsets }}
+  subsets:
+    {{- range .subsets }}
+    - name: {{ .name }}
+      labels:
+        {{- toYaml .labels | nindent 8 }}
+    {{- end }}
+  {{- end }}
+{{- end }}

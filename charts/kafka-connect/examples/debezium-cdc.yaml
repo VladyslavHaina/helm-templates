@@ -1,0 +1,86 @@
+# Debezium MongoDB CDC pipeline — complete with plugin install + connector deploy
+# Usage: helm install cdc-connect ../kafka-connect -f debezium-cdc.yaml
+
+app:
+  name: cdc-connect
+
+replicaCount: 2
+
+kafka:
+  bootstrapServers: "kafka-bootstrap:9096"
+  securityProtocol: SASL_SSL
+  sasl:
+    mechanism: SCRAM-SHA-512
+    credentialsSecret:
+      name: kafka-credentials
+      usernameKey: username
+      passwordKey: password
+
+connect:
+  groupId: cdc-connect-cluster
+  configStorageReplicationFactor: 3
+  offsetStorageReplicationFactor: 3
+  statusStorageReplicationFactor: 3
+  keyConverter: org.apache.kafka.connect.json.JsonConverter
+  valueConverter: org.apache.kafka.connect.json.JsonConverter
+  keyConverterSchemasEnabled: false
+  valueConverterSchemasEnabled: false
+
+# -- Step 1: Install Debezium plugin via init container
+plugins:
+  enabled: true
+  confluentHub:
+    - name: debezium-connector-mongodb
+      owner: debezium
+      version: "2.5.4"
+
+# -- Step 2: Deploy connector config to REST API via post-install Job
+connectorDeployJob:
+  enabled: true
+  waitTimeoutSeconds: 300
+
+connectors:
+  - name: mongodb-cdc-source
+    config:
+      connector.class: io.debezium.connector.mongodb.MongoDbConnector
+      tasks.max: "1"
+      mongodb.connection.string: "${env:MONGODB_URI}"
+      topic.prefix: "cdc"
+      capture.mode: change_streams_update_full
+      transforms: unwrap,route
+      transforms.unwrap.type: io.debezium.connector.mongodb.transforms.ExtractNewDocumentState
+      transforms.unwrap.drop.tombstones: "true"
+      transforms.route.type: org.apache.kafka.connect.transforms.RegexRouter
+      transforms.route.regex: "cdc\\.(.+)\\.(.+)"
+      transforms.route.replacement: "private.cdc.$1.$2"
+      errors.tolerance: all
+      errors.deadletterqueue.topic.name: "private.cdc.dlq"
+      errors.deadletterqueue.topic.replication.factor: "3"
+
+env:
+  - name: MONGODB_URI
+    valueFrom:
+      secretKeyRef:
+        name: mongodb-credentials
+        key: connection-string
+
+connectorMonitor:
+  enabled: true
+  intervalSeconds: 30
+  autoRestart: true
+
+resources:
+  limits:
+    cpu: "2"
+    memory: 4Gi
+  requests:
+    cpu: 500m
+    memory: 2Gi
+
+jvm:
+  heapSize: 2g
+  gcOpts: "-XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

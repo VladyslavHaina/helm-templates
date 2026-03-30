@@ -1,0 +1,13 @@
+{{- if and .Values.otelCollector.enabled .Values.otelCollector.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "observability-stack.otelName" . }}
+  labels:
+    {{- include "observability-stack.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.otelCollector.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "observability-stack.otelName" . }}
+{{- end }}

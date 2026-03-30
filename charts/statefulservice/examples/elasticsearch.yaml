@@ -1,0 +1,84 @@
+# Elasticsearch data node StatefulSet
+# Usage: helm install es-data ../statefulservice -f elasticsearch.yaml
+
+app:
+  name: elasticsearch-data
+
+image:
+  repository: docker.elastic.co/elasticsearch/elasticsearch
+  tag: "8.13.0"
+
+replicaCount: 3
+podManagementPolicy: Parallel
+
+volumeClaimTemplates:
+  - name: data
+    accessModes:
+      - ReadWriteOnce
+    size: 200Gi
+
+service:
+  headless:
+    enabled: true
+    port: 9200
+    targetPort: 9200
+    protocol: TCP
+  standard:
+    enabled: true
+    type: ClusterIP
+    port: 9200
+    targetPort: 9200
+
+env:
+  - name: node.name
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.name
+  - name: cluster.name
+    value: my-cluster
+  - name: discovery.seed_hosts
+    value: elasticsearch-data-headless
+  - name: node.roles
+    value: "data,ingest"
+  - name: ES_JAVA_OPTS
+    value: "-Xms4g -Xmx4g"
+  - name: xpack.security.enabled
+    value: "true"
+
+resources:
+  limits:
+    cpu: "4"
+    memory: 8Gi
+  requests:
+    cpu: "1"
+    memory: 6Gi
+
+initContainers:
+  - name: increase-vm-max-map
+    image: busybox:1.36
+    command: ["sysctl", "-w", "vm.max_map_count=262144"]
+    securityContext:
+      privileged: true
+      runAsUser: 0
+
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+scheduling:
+  podAntiAffinity:
+    enabled: true
+    type: required
+    topologyKey: topology.kubernetes.io/zone
+
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1

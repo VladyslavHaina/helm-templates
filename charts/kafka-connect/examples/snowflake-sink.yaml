@@ -1,0 +1,74 @@
+# Snowflake Sink connector — stream Kafka data to Snowflake
+# Usage: helm install sf-sink ../kafka-connect -f snowflake-sink.yaml
+
+app:
+  name: snowflake-connect
+
+replicaCount: 2
+
+kafka:
+  bootstrapServers: "kafka-bootstrap:9096"
+  securityProtocol: SASL_SSL
+  sasl:
+    mechanism: SCRAM-SHA-512
+    credentialsSecret:
+      name: kafka-credentials
+      usernameKey: username
+      passwordKey: password
+
+plugins:
+  enabled: true
+  confluentHub:
+    - name: snowflake-kafka-connector
+      owner: snowflakeinc
+      version: "2.2.2"
+
+connectorDeployJob:
+  enabled: true
+
+connectors:
+  - name: snowflake-events-sink
+    config:
+      connector.class: com.snowflake.kafka.connector.SnowflakeSinkConnector
+      tasks.max: "4"
+      topics: "events.users,events.orders"
+      snowflake.url.name: "${env:SNOWFLAKE_URL}"
+      snowflake.user.name: "${env:SNOWFLAKE_USER}"
+      snowflake.private.key: "${env:SNOWFLAKE_PRIVATE_KEY}"
+      snowflake.database.name: RAW_DATA
+      snowflake.schema.name: KAFKA_EVENTS
+      snowflake.topic2table.map: "events.users:USERS_RAW,events.orders:ORDERS_RAW"
+      key.converter: org.apache.kafka.connect.storage.StringConverter
+      value.converter: com.snowflake.kafka.connector.records.SnowflakeJsonConverter
+      buffer.count.records: "10000"
+      buffer.flush.time: "120"
+      buffer.size.bytes: "5000000"
+
+env:
+  - name: SNOWFLAKE_URL
+    valueFrom:
+      secretKeyRef:
+        name: snowflake-credentials
+        key: url
+  - name: SNOWFLAKE_USER
+    valueFrom:
+      secretKeyRef:
+        name: snowflake-credentials
+        key: user
+  - name: SNOWFLAKE_PRIVATE_KEY
+    valueFrom:
+      secretKeyRef:
+        name: snowflake-credentials
+        key: private-key
+
+connectorMonitor:
+  enabled: true
+  autoRestart: true
+
+resources:
+  limits:
+    cpu: "2"
+    memory: 4Gi
+  requests:
+    cpu: 500m
+    memory: 2Gi

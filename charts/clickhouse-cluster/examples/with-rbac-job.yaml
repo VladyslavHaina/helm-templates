@@ -1,0 +1,77 @@
+# ClickHouse with SQL RBAC: users, roles, row-level policies
+# Usage: helm install clickhouse ../clickhouse-cluster -f with-rbac-job.yaml
+
+cluster:
+  name: secure-analytics
+
+clickhouse:
+  topology:
+    shards: 1
+    replicas: 2
+  storage:
+    data:
+      size: 100Gi
+
+keeper:
+  enabled: true
+  replicas: 3
+
+rbacJob:
+  enabled: true
+  image: clickhouse/clickhouse-client:24.8
+
+  users:
+    - name: app_user
+      identifiedByEnv: APP_PASSWORD
+    - name: service_a_user
+      identifiedByEnv: SVC_A_PASSWORD
+    - name: service_b_user
+      identifiedByEnv: SVC_B_PASSWORD
+
+  roles:
+    - name: full_access
+      grants:
+        - "ALL ON analytics.*"
+      users:
+        - app_user
+    - name: service_a_role
+      grants:
+        - "SELECT, INSERT ON analytics.events"
+      users:
+        - service_a_user
+    - name: service_b_role
+      grants:
+        - "SELECT ON analytics.events"
+      users:
+        - service_b_user
+
+  rowPolicies:
+    - name: service_a_filter
+      table: "analytics.events"
+      condition: "service_name = 'service-a'"
+      users:
+        - service_a_user
+    - name: service_b_filter
+      table: "analytics.events"
+      condition: "service_name = 'service-b'"
+      users:
+        - service_b_user
+
+  env:
+    - name: APP_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: ch-passwords
+          key: app
+    - name: SVC_A_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: ch-passwords
+          key: svc-a
+    - name: SVC_B_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: ch-passwords
+          key: svc-b
+
+  syncWave: "3"

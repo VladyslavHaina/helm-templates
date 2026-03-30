@@ -1,0 +1,46 @@
+# Scheduled cleanup CronJob — runs every day at 2 AM UTC
+# Usage: helm install cleanup ../worker -f scheduled-cleanup.yaml
+
+app:
+  name: data-cleanup
+
+type: cronjob
+
+image:
+  repository: my-registry/cleanup-tool
+  tag: "1.0.0"
+
+command:
+  - /bin/sh
+  - -c
+args:
+  - |
+    echo "Starting cleanup at $(date)..."
+    ./cleanup --older-than 30d --dry-run=false
+    echo "Cleanup complete."
+
+cronjob:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 600
+  timeZone: "UTC"
+
+job:
+  backoffLimit: 2
+  restartPolicy: OnFailure
+
+env:
+  - name: STORAGE_BUCKET
+    value: "my-data-bucket"
+  - name: RETENTION_DAYS
+    value: "30"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 1Gi
+  requests:
+    cpu: 100m
+    memory: 256Mi

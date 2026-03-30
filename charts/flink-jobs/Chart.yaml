@@ -1,0 +1,6 @@
+apiVersion: v2
+name: flink-jobs
+description: Apache Flink chart using Flink Kubernetes Operator with FlinkDeployment and FlinkSessionJob support, checkpointing, and savepoint management
+version: 1.0.0
+type: application
+appVersion: "1.19"

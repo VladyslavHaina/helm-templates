@@ -1,0 +1,283 @@
+# -- Application metadata
+app:
+  name: my-service
+
+fullnameOverride: ""
+
+# -- Container image
+image:
+  repository: nginx
+  tag: "1.27"
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# -- Deployment strategy
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# -- Replica count (ignored when autoscaling is enabled)
+replicaCount: 2
+
+# -- Resource limits and requests
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# -- Service configuration
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  protocol: TCP
+  annotations: {}
+
+# -- Horizontal Pod Autoscaler
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: 80
+  # -- Custom scaling behavior
+  behavior: {}
+  #   scaleDown:
+  #     stabilizationWindowSeconds: 300
+  #     policies:
+  #       - type: Percent
+  #         value: 10
+  #         periodSeconds: 60
+
+# -- Pod Disruption Budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# -- Health probes
+probes:
+  liveness:
+    enabled: true
+    httpGet:
+      path: /healthz
+      port: http
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    httpGet:
+      path: /ready
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  startup:
+    enabled: false
+    httpGet:
+      path: /healthz
+      port: http
+    initialDelaySeconds: 0
+    periodSeconds: 5
+    failureThreshold: 30
+
+# -- Container command override
+command: []
+args: []
+
+# -- Environment variables
+env: []
+  # - name: LOG_LEVEL
+  #   value: "info"
+  # - name: DB_PASSWORD
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: my-secret
+  #       key: password
+
+# -- Environment from ConfigMap/Secret references
+envFrom: []
+  # - secretRef:
+  #     name: my-secret
+  # - configMapRef:
+  #     name: my-config
+
+# -- ConfigMap (created by this chart)
+configMap:
+  enabled: false
+  data: {}
+    # APP_CONFIG: "value"
+    # FEATURE_FLAG: "true"
+
+# -- Secrets management (cloud-agnostic CSI)
+secrets:
+  csi:
+    enabled: false
+    # -- Provider: aws, azure, gcp, vault
+    provider: ""
+    # -- AWS Secrets Manager
+    aws:
+      secretArn: ""
+      keys: []
+        # - objectName: my-secret
+        #   objectAlias: MY_SECRET
+        #   jmesPath:
+        #     - path: username
+        #       objectAlias: DB_USER
+    # -- Azure Key Vault
+    azure:
+      keyvaultName: ""
+      tenantId: ""
+      objects: []
+        # - objectName: my-secret
+        #   objectType: secret
+    # -- GCP Secret Manager
+    gcp:
+      projectId: ""
+      secrets: []
+        # - resourceName: "projects/PROJECT_ID/secrets/my-secret/versions/latest"
+        #   objectName: my-secret
+    # -- HashiCorp Vault
+    vault:
+      roleName: ""
+      secretPath: ""
+      keys: []
+    # -- Sync to Kubernetes Secret (puts secrets in etcd)
+    syncAsKubernetesSecret:
+      enabled: false
+      secretName: ""
+      type: Opaque
+      data: []
+        # - objectName: DB_USER
+        #   key: username
+  # -- Mount an existing Kubernetes Secret as volume
+  kubernetes:
+    enabled: false
+    name: ""
+    mountPath: /mnt/secrets
+    readOnly: true
+
+# -- Service Account
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+    # AWS IRSA:
+    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/my-role
+    # GCP Workload Identity:
+    # iam.gke.io/gcp-service-account: my-sa@project.iam.gserviceaccount.com
+    # Azure Workload Identity:
+    # azure.workload.identity/client-id: "client-id"
+  automountServiceAccountToken: false
+
+# -- Pod scheduling
+scheduling:
+  nodeSelector: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  affinity: {}
+  # -- Pod anti-affinity (spread pods across zones)
+  podAntiAffinity:
+    enabled: true
+    # -- preferred (soft) or required (hard)
+    type: preferred
+    topologyKey: topology.kubernetes.io/zone
+
+# -- Standard Kubernetes Ingress
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: my-service.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+    # - secretName: my-tls-secret
+    #   hosts:
+    #     - my-service.example.com
+
+# -- Istio VirtualService (optional, requires Istio)
+istio:
+  enabled: false
+  virtualService:
+    hosts: []
+      # - my-service.example.com
+    gateways: []
+      # - istio-system/my-gateway
+    http:
+      - match:
+          - uri:
+              prefix: /
+        route:
+          - destination:
+              port:
+                number: 80
+  # -- Istio DestinationRule
+  destinationRule:
+    enabled: false
+    trafficPolicy: {}
+      # connectionPool:
+      #   tcp:
+      #     maxConnections: 100
+
+# -- Init containers
+initContainers: []
+
+# -- Sidecar containers
+extraContainers: []
+
+# -- Extra volumes
+extraVolumes: []
+
+# -- Extra volume mounts on main container
+extraVolumeMounts: []
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Extra pod labels
+podLabels: {}
+
+# -- Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# -- Prometheus ServiceMonitor
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  path: /metrics
+  port: http
+
+# -- Network Policy
+networkPolicy:
+  enabled: false
+  ingress: []
+    # - from:
+    #     - namespaceSelector:
+    #         matchLabels:
+    #           kubernetes.io/metadata.name: frontend
+    #   ports:
+    #     - port: 8080
+  egress: []

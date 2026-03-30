@@ -1,0 +1,13 @@
+{{- range .Values.authorizationPolicies }}
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ .name }}
+  labels:
+    {{- include "istio-routing.labels" $ | nindent 4 }}
+spec:
+  action: {{ .action }}
+  rules:
+    {{- toYaml .rules | nindent 4 }}
+{{- end }}

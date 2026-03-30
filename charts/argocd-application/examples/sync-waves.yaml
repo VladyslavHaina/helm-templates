@@ -1,0 +1,94 @@
+# Sync-wave ordering: operators -> namespaces -> configs -> workloads -> monitoring
+# Usage: helm install ordered-deploy ../argocd-application -f sync-waves.yaml
+
+project:
+  enabled: true
+  name: ordered-project
+  destinations:
+    - namespace: "*"
+      server: "https://kubernetes.default.svc"
+  sourceRepos:
+    - "*"
+
+applications:
+  # Wave -2: Operators
+  - name: clickhouse-operator
+    sourceType: helm
+    project: ordered-project
+    destination:
+      namespace: clickhouse
+      server: "https://kubernetes.default.svc"
+    source:
+      repoURL: "https://github.com/my-org/manifests.git"
+      targetRevision: HEAD
+      path: "operators/clickhouse"
+      helm:
+        releaseName: clickhouse-operator
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+    annotations:
+      argocd.argoproj.io/sync-wave: "-2"
+
+  # Wave 0: Core workloads
+  - name: api-service
+    sourceType: helm
+    project: ordered-project
+    destination:
+      namespace: backend
+      server: "https://kubernetes.default.svc"
+    source:
+      repoURL: "https://github.com/my-org/manifests.git"
+      targetRevision: HEAD
+      path: "services/api"
+      helm:
+        releaseName: api-service
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+    annotations:
+      argocd.argoproj.io/sync-wave: "0"
+
+  # Wave 2: CRD instances (depend on operators)
+  - name: clickhouse-cluster
+    sourceType: helm
+    project: ordered-project
+    destination:
+      namespace: clickhouse
+      server: "https://kubernetes.default.svc"
+    source:
+      repoURL: "https://github.com/my-org/manifests.git"
+      targetRevision: HEAD
+      path: "data/clickhouse"
+      helm:
+        releaseName: clickhouse
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+    annotations:
+      argocd.argoproj.io/sync-wave: "2"
+
+  # Wave 4: Monitoring (depends on workloads)
+  - name: monitoring-stack
+    sourceType: helm
+    project: ordered-project
+    destination:
+      namespace: monitoring
+      server: "https://kubernetes.default.svc"
+    source:
+      repoURL: "https://github.com/my-org/manifests.git"
+      targetRevision: HEAD
+      path: "monitoring/otel"
+      helm:
+        releaseName: otel-collector
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+    annotations:
+      argocd.argoproj.io/sync-wave: "4"

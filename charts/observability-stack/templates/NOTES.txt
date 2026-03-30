@@ -1,0 +1,29 @@
+Observability stack deployed:
+
+{{- if .Values.otelCollector.enabled }}
+OTEL Collector:
+  gRPC: {{ include "observability-stack.otelName" . }}:{{ .Values.otelCollector.ports.grpc }}
+  HTTP: {{ include "observability-stack.otelName" . }}:{{ .Values.otelCollector.ports.http }}
+
+Configure your applications:
+  OTEL_EXPORTER_OTLP_ENDPOINT=http://{{ include "observability-stack.otelName" . }}.{{ .Release.Namespace }}:{{ .Values.otelCollector.ports.http }}
+{{- end }}
+
+{{- if and (eq .Values.ui.type "hyperdx") .Values.ui.hyperdx.enabled }}
+HyperDX UI: {{ include "observability-stack.uiName" . }}:{{ .Values.ui.hyperdx.service.port }}
+{{- end }}
+
+{{- if .Values.mongodb.enabled }}
+MongoDB: {{ include "observability-stack.mongoName" . }}:{{ .Values.mongodb.port }}
+{{- end }}
+
+Backends:
+{{- if .Values.otelCollector.exporters.clickhouse.enabled }}
+  - ClickHouse: {{ .Values.otelCollector.exporters.clickhouse.endpoint }}
+{{- end }}
+{{- if .Values.otelCollector.exporters.elasticsearch.enabled }}
+  - Elasticsearch
+{{- end }}
+{{- if .Values.otelCollector.exporters.otlp.enabled }}
+  - OTLP forward: {{ .Values.otelCollector.exporters.otlp.endpoint }}
+{{- end }}

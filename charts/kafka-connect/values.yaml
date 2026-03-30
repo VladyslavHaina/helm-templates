@@ -1,0 +1,317 @@
+# -- Application metadata
+app:
+  name: kafka-connect
+
+fullnameOverride: ""
+
+# -- Kafka Connect image
+image:
+  repository: confluentinc/cp-kafka-connect
+  tag: "7.7.0"
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# -- Replicas
+replicaCount: 2
+
+# -- Resources
+resources:
+  limits:
+    cpu: "2"
+    memory: 4Gi
+  requests:
+    cpu: 500m
+    memory: 2Gi
+
+# -- Kafka cluster configuration
+kafka:
+  bootstrapServers: "kafka-bootstrap:9092"
+  # -- Security protocol: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL
+  securityProtocol: PLAINTEXT
+  sasl:
+    mechanism: SCRAM-SHA-512
+    jaasConfig: ""
+    credentialsSecret:
+      name: ""
+      usernameKey: username
+      passwordKey: password
+
+# -- Kafka Connect worker configuration
+connect:
+  groupId: connect-cluster
+  configStorageTopic: connect-configs
+  offsetStorageTopic: connect-offsets
+  statusStorageTopic: connect-status
+  configStorageReplicationFactor: 3
+  offsetStorageReplicationFactor: 3
+  statusStorageReplicationFactor: 3
+  keyConverter: org.apache.kafka.connect.json.JsonConverter
+  valueConverter: org.apache.kafka.connect.json.JsonConverter
+  keyConverterSchemasEnabled: false
+  valueConverterSchemasEnabled: false
+  pluginPath: /usr/share/java,/usr/share/confluent-hub-components
+  restPort: 8083
+  # -- Additional worker properties
+  extraConfig: {}
+    # producer.acks: "all"
+    # consumer.max.poll.records: "500"
+
+# -- Schema Registry
+schemaRegistry:
+  enabled: false
+  url: ""
+
+# -- Connector plugins installation (via init container)
+# Two approaches: confluent-hub install OR direct JAR download
+plugins:
+  enabled: false
+  # -- Install via confluent-hub (uses the Confluent base image's built-in tool)
+  confluentHub: []
+    # - name: debezium-connector-mongodb
+    #   owner: debezium
+    #   version: "2.5.4"
+    # - name: kafka-connect-s3
+    #   owner: confluentinc
+    #   version: "10.5.13"
+    # - name: kafka-connect-jdbc
+    #   owner: confluentinc
+    #   version: "10.7.6"
+    # - name: snowflake-kafka-connector
+    #   owner: snowflakeinc
+    #   version: "2.2.2"
+  # -- Download JARs directly (for plugins not on Confluent Hub)
+  directDownload: []
+    # - url: "https://repo1.maven.org/maven2/io/debezium/debezium-connector-mongodb/2.5.4.Final/debezium-connector-mongodb-2.5.4.Final-plugin.tar.gz"
+    #   type: tgz  # jar, tgz, or zip
+    # - url: "https://github.com/my-org/my-connector/releases/download/v1.0/my-connector-1.0.jar"
+    #   type: jar
+
+# -- JVM configuration
+jvm:
+  heapSize: 2g
+  opts: ""
+  gcOpts: "-XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+
+# -- OTEL Java Agent (downloaded via init container)
+otelAgent:
+  enabled: false
+  image: busybox:1.36
+  version: "2.4.0"
+  endpoint: "http://otel-collector:4317"
+  serviceName: kafka-connect
+  samplingRatio: "0.1"
+  propagators: "tracecontext,baggage"
+
+# -- JMX Prometheus Exporter (downloaded via init container)
+jmxExporter:
+  enabled: false
+  image: busybox:1.36
+  version: "1.0.1"
+  port: 9404
+  rules:
+    - pattern: "kafka.connect<type=connect-worker-metrics>([^,]+)"
+      name: "kafka_connect_worker_$1"
+      type: GAUGE
+    - pattern: "kafka.connect<type=connector-metrics, connector=([^,]+)><>([^,]+)"
+      name: "kafka_connect_connector_$2"
+      type: GAUGE
+      labels:
+        connector: "$1"
+    - pattern: "kafka.connect<type=connector-task-metrics, connector=([^,]+), task=([^,]+)><>([^,]+)"
+      name: "kafka_connect_task_$3"
+      type: GAUGE
+      labels:
+        connector: "$1"
+        task: "$2"
+
+# -- Connector health monitoring sidecar
+connectorMonitor:
+  enabled: false
+  image: curlimages/curl:8.7.1
+  intervalSeconds: 30
+  autoRestart: true
+
+# -- Connectors to deploy automatically after startup (via post-install Job)
+# These are submitted to the Kafka Connect REST API
+connectors: []
+  # -- Debezium MongoDB CDC source
+  # - name: mongodb-cdc-source
+  #   config:
+  #     connector.class: io.debezium.connector.mongodb.MongoDbConnector
+  #     tasks.max: "1"
+  #     mongodb.connection.string: "${env:MONGODB_URI}"
+  #     topic.prefix: "cdc"
+  #     capture.mode: change_streams_update_full
+  #     transforms: unwrap
+  #     transforms.unwrap.type: io.debezium.connector.mongodb.transforms.ExtractNewDocumentState
+  #     errors.tolerance: all
+  #     errors.deadletterqueue.topic.name: "cdc.dlq"
+  #
+  # -- Debezium PostgreSQL CDC source
+  # - name: postgres-cdc-source
+  #   config:
+  #     connector.class: io.debezium.connector.postgresql.PostgresConnector
+  #     tasks.max: "1"
+  #     database.hostname: "${env:PG_HOST}"
+  #     database.port: "5432"
+  #     database.user: "${env:PG_USER}"
+  #     database.password: "${env:PG_PASSWORD}"
+  #     database.dbname: mydb
+  #     topic.prefix: "cdc"
+  #     plugin.name: pgoutput
+  #
+  # -- Debezium MySQL CDC source
+  # - name: mysql-cdc-source
+  #   config:
+  #     connector.class: io.debezium.connector.mysql.MySqlConnector
+  #     tasks.max: "1"
+  #     database.hostname: "${env:MYSQL_HOST}"
+  #     database.port: "3306"
+  #     database.user: "${env:MYSQL_USER}"
+  #     database.password: "${env:MYSQL_PASSWORD}"
+  #     database.server.id: "1"
+  #     topic.prefix: "cdc"
+  #
+  # -- S3 Sink
+  # - name: s3-sink
+  #   config:
+  #     connector.class: io.confluent.connect.s3.S3SinkConnector
+  #     tasks.max: "1"
+  #     topics: "my-topic"
+  #     s3.bucket.name: "my-bucket"
+  #     s3.region: "us-east-1"
+  #     storage.class: io.confluent.connect.s3.storage.S3Storage
+  #     format.class: io.confluent.connect.s3.format.json.JsonFormat
+  #     flush.size: "1000"
+  #
+  # -- Snowflake Sink
+  # - name: snowflake-sink
+  #   config:
+  #     connector.class: com.snowflake.kafka.connector.SnowflakeSinkConnector
+  #     tasks.max: "1"
+  #     topics: "my-topic"
+  #     snowflake.url.name: "${env:SF_URL}"
+  #     snowflake.user.name: "${env:SF_USER}"
+  #     snowflake.private.key: "${env:SF_PRIVATE_KEY}"
+  #     snowflake.database.name: MY_DB
+  #     snowflake.schema.name: PUBLIC
+  #
+  # -- JDBC Sink (PostgreSQL, MySQL, etc.)
+  # - name: jdbc-sink
+  #   config:
+  #     connector.class: io.confluent.connect.jdbc.JdbcSinkConnector
+  #     tasks.max: "1"
+  #     topics: "my-topic"
+  #     connection.url: "${env:JDBC_URL}"
+  #     connection.user: "${env:JDBC_USER}"
+  #     connection.password: "${env:JDBC_PASSWORD}"
+  #     auto.create: "true"
+  #     insert.mode: upsert
+  #     pk.mode: record_key
+
+# -- Connector deployment Job (submits connectors to REST API after startup)
+connectorDeployJob:
+  enabled: false
+  image: curlimages/curl:8.7.1
+  # -- Wait for Connect REST API to be ready
+  waitTimeoutSeconds: 300
+  # -- Backoff between retries
+  backoffSeconds: 5
+
+# -- Autoscaling
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 75
+
+# -- Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# -- Health probes
+probes:
+  liveness:
+    enabled: true
+    httpGet:
+      path: /connectors
+      port: rest
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    httpGet:
+      path: /connectors
+      port: rest
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# -- Service
+service:
+  type: ClusterIP
+  port: 8083
+  annotations: {}
+
+# -- Environment variables
+env: []
+envFrom: []
+
+# -- Secrets management (cloud-agnostic CSI)
+secrets:
+  csi:
+    enabled: false
+    provider: ""
+    aws:
+      secretArn: ""
+      keys: []
+  kubernetes:
+    enabled: false
+    name: ""
+
+# -- Service Account
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# -- Pod scheduling
+scheduling:
+  nodeSelector: {}
+  tolerations: []
+  podAntiAffinity:
+    enabled: true
+    type: preferred
+    topologyKey: topology.kubernetes.io/zone
+
+# -- Security
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# -- Istio VirtualService (optional)
+istio:
+  enabled: false
+  virtualService:
+    hosts: []
+    gateways: []
+
+# -- Prometheus ServiceMonitor
+serviceMonitor:
+  enabled: false
+  interval: 30s
+
+# -- Network Policy
+networkPolicy:
+  enabled: false

@@ -1,0 +1,31 @@
+# Simple 3-member replica set
+# Usage: helm install mongodb ../mongodb-operator -f basic.yaml
+
+cluster:
+  name: my-mongodb
+
+replicaSet:
+  members: 3
+
+storage:
+  data:
+    size: 50Gi
+  logs:
+    size: 10Gi
+
+auth:
+  adminUser:
+    name: admin
+    passwordSecretRef:
+      name: mongodb-admin-password
+      key: password
+
+users:
+  - name: app-user
+    database: admin
+    passwordSecretRef:
+      name: mongodb-app-password
+      key: password
+    roles:
+      - name: readWrite
+        db: myapp

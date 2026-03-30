@@ -1,0 +1,6 @@
+apiVersion: v2
+name: clickhouse-cluster
+description: Production-ready ClickHouse cluster chart using Altinity Operator with Keeper, RBAC, profiles, quotas, and OpenTelemetry Collector integration
+version: 1.0.0
+type: application
+appVersion: "24.8"

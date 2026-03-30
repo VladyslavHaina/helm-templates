@@ -1,0 +1,31 @@
+{{- if eq .Values.mode "session" }}
+{{- range .Values.sessionJobs }}
+---
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkSessionJob
+metadata:
+  name: {{ include "flink-jobs.fullname" $ }}-{{ .name }}
+  labels:
+    {{- include "flink-jobs.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ .name }}
+spec:
+  deploymentName: {{ include "flink-jobs.fullname" $ }}
+  job:
+    jarURI: {{ .jarURI | quote }}
+    parallelism: {{ .parallelism | default 1 }}
+    upgradeMode: {{ .upgradeMode | default "last-state" }}
+    {{- if .entryClass }}
+    entryClass: {{ .entryClass | quote }}
+    {{- end }}
+    {{- if .allowNonRestoredState }}
+    allowNonRestoredState: {{ .allowNonRestoredState }}
+    {{- end }}
+    {{- if .savepointTriggerNonce }}
+    savepointTriggerNonce: {{ .savepointTriggerNonce }}
+    {{- end }}
+    {{- with .args }}
+    args:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+{{- end }}
+{{- end }}

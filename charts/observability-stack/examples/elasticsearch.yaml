@@ -1,0 +1,30 @@
+# Elasticsearch backend for logs and traces
+# Usage: helm install otel ../observability-stack -f elasticsearch.yaml
+
+stack:
+  name: otel-es
+
+otelCollector:
+  enabled: true
+  replicas: 2
+  exporters:
+    clickhouse:
+      enabled: false
+    elasticsearch:
+      enabled: true
+      endpoints:
+        - "https://elasticsearch:9200"
+      index: observability
+    logging:
+      enabled: true
+      verbosity: basic
+  rbac:
+    enabled: true
+
+ui:
+  type: none
+  hyperdx:
+    enabled: false
+
+mongodb:
+  enabled: false

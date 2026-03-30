@@ -1,0 +1,81 @@
+# Full production MongoDB with monitoring and anti-affinity
+# Usage: helm install mongodb ../mongodb-operator -f production.yaml
+
+cluster:
+  name: prod-mongodb
+
+replicaSet:
+  members: 5
+
+resources:
+  mongod:
+    limits:
+      cpu: "4"
+      memory: 16Gi
+    requests:
+      cpu: "2"
+      memory: 8Gi
+  agent:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+storage:
+  data:
+    size: 200Gi
+    storageClass: gp3
+  logs:
+    size: 20Gi
+    storageClass: gp3
+
+auth:
+  adminUser:
+    name: admin
+    passwordSecretRef:
+      name: mongodb-admin-password
+      key: password
+
+users:
+  - name: app-user
+    database: admin
+    passwordSecretRef:
+      name: mongodb-app-password
+      key: password
+    roles:
+      - name: readWrite
+        db: production
+
+config:
+  storage:
+    journal:
+      commitIntervalMs: 50
+    wiredTiger:
+      engineConfig:
+        journalCompressor: zlib
+
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+  exporter:
+    enabled: true
+    image: percona/mongodb_exporter:0.40
+    port: 9216
+
+scheduling:
+  podAntiAffinity:
+    enabled: true
+    topologyKey: topology.kubernetes.io/zone
+
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: backend
+      ports:
+        - port: 27017

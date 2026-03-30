@@ -1,0 +1,50 @@
+# Database migration job
+# Usage: helm install db-migrate ../worker -f db-migration.yaml
+
+app:
+  name: db-migration
+
+type: job
+
+image:
+  repository: my-registry/my-app
+  tag: "2.0.0"
+
+command:
+  - /bin/sh
+  - -c
+args:
+  - |
+    echo "Running database migrations..."
+    ./migrate --source file://migrations --database "$DATABASE_URL" up
+    echo "Migrations complete."
+
+job:
+  backoffLimit: 3
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 600
+  completions: 1
+  parallelism: 1
+  restartPolicy: Never
+
+env:
+  - name: DATABASE_URL
+    valueFrom:
+      secretKeyRef:
+        name: db-credentials
+        key: url
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL

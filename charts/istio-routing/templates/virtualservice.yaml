@@ -1,0 +1,46 @@
+{{- range .Values.virtualServices }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ .name }}
+  labels:
+    {{- include "istio-routing.labels" $ | nindent 4 }}
+spec:
+  hosts:
+    {{- range .hosts }}
+    - {{ . | quote }}
+    {{- end }}
+  gateways:
+    {{- range .gateways }}
+    - {{ . | quote }}
+    {{- end }}
+  http:
+    {{- range .http }}
+    - {{- if .match }}
+      match:
+        {{- toYaml .match | nindent 8 }}
+      {{- end }}
+      route:
+        {{- range .route }}
+        - destination:
+            host: {{ .destination.host }}
+            port:
+              number: {{ .destination.port.number }}
+          {{- if .weight }}
+          weight: {{ .weight }}
+          {{- end }}
+        {{- end }}
+      {{- if .timeout }}
+      timeout: {{ .timeout }}
+      {{- end }}
+      {{- if .retries }}
+      retries:
+        {{- toYaml .retries | nindent 8 }}
+      {{- end }}
+      {{- if .corsPolicy }}
+      corsPolicy:
+        {{- toYaml .corsPolicy | nindent 8 }}
+      {{- end }}
+    {{- end }}
+{{- end }}

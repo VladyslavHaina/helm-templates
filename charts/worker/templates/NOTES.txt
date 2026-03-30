@@ -1,0 +1,17 @@
+{{ include "worker.fullname" . }} has been deployed.
+
+{{- if eq .Values.type "job" }}
+Type: Job
+Completions: {{ .Values.job.completions }} | Parallelism: {{ .Values.job.parallelism }}
+
+Check status:
+  kubectl get jobs {{ include "worker.fullname" . }} -n {{ .Release.Namespace }}
+  kubectl logs job/{{ include "worker.fullname" . }} -n {{ .Release.Namespace }}
+{{- else }}
+Type: CronJob
+Schedule: {{ .Values.cronjob.schedule }}
+
+Check status:
+  kubectl get cronjobs {{ include "worker.fullname" . }} -n {{ .Release.Namespace }}
+  kubectl get jobs -l app.kubernetes.io/name={{ include "worker.name" . }} -n {{ .Release.Namespace }}
+{{- end }}

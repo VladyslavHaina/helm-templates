@@ -1,0 +1,131 @@
+# -- Application metadata
+app:
+  name: my-worker
+
+fullnameOverride: ""
+
+# -- Container image
+image:
+  repository: busybox
+  tag: "1.36"
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# -- Job type: "job" or "cronjob"
+type: job
+
+# -- Job configuration (when type: job)
+job:
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 3600
+  completions: 1
+  parallelism: 1
+  completionMode: NonIndexed  # NonIndexed or Indexed
+  restartPolicy: OnFailure
+
+# -- CronJob configuration (when type: cronjob)
+cronjob:
+  schedule: "0 * * * *"
+  concurrencyPolicy: Forbid  # Allow, Forbid, Replace
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  startingDeadlineSeconds: 300
+  suspend: false
+  timeZone: ""  # e.g. "America/New_York"
+
+# -- Container command and args
+command: []
+  # - /bin/sh
+  # - -c
+args: []
+  # - echo "Hello World"
+
+# -- Resources
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# -- Environment variables
+env: []
+envFrom: []
+
+# -- ConfigMap (created by this chart)
+configMap:
+  enabled: false
+  data: {}
+
+# -- Secrets management (cloud-agnostic CSI)
+secrets:
+  csi:
+    enabled: false
+    provider: ""
+    aws:
+      secretArn: ""
+      keys: []
+    azure:
+      keyvaultName: ""
+      tenantId: ""
+      objects: []
+    gcp:
+      projectId: ""
+      secrets: []
+    vault:
+      roleName: ""
+      secretPath: ""
+      keys: []
+    syncAsKubernetesSecret:
+      enabled: false
+      secretName: ""
+      type: Opaque
+      data: []
+  kubernetes:
+    enabled: false
+    name: ""
+    mountPath: /mnt/secrets
+    readOnly: true
+
+# -- Service Account
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: false
+
+# -- Pod scheduling
+scheduling:
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# -- Init containers
+initContainers: []
+
+# -- Extra volumes and mounts
+extraVolumes: []
+extraVolumeMounts: []
+
+# -- Pod annotations and labels
+podAnnotations: {}
+podLabels: {}
+
+# -- Security contexts
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# -- Network Policy
+networkPolicy:
+  enabled: false
+  egress: []

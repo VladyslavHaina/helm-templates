@@ -1,0 +1,43 @@
+{{- range .Values.databases }}
+---
+apiVersion: mongodbcommunity.mongodb.com/v1
+kind: MongoDBCommunity
+metadata:
+  name: {{ include "mongodb-operator.fullname" $ }}-{{ .name }}
+  labels:
+    {{- include "mongodb-operator.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ .name }}
+spec:
+  members: {{ .members | default 3 }}
+  type: ReplicaSet
+  version: {{ $.Values.image.tag | quote }}
+  security:
+    authentication:
+      modes:
+        - SCRAM
+  users:
+    {{- range .users }}
+    - name: {{ .name }}
+      db: admin
+      passwordSecretRef:
+        name: {{ .passwordSecretRef.name }}
+        key: {{ .passwordSecretRef.key | default "password" }}
+      roles:
+        {{- range .roles }}
+        - name: {{ .name }}
+          db: {{ .db }}
+        {{- end }}
+      scramCredentialsSecretName: {{ include "mongodb-operator.fullname" $ }}-{{ .name }}-scram
+    {{- end }}
+  statefulSet:
+    spec:
+      volumeClaimTemplates:
+        - metadata:
+            name: data-volume
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: {{ .storage.data.size | default "20Gi" }}
+{{- end }}

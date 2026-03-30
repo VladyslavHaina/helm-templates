@@ -1,0 +1,24 @@
+ClickHouse cluster deployed:
+
+Cluster: {{ include "clickhouse-cluster.fullname" . }}
+Topology: {{ .Values.clickhouse.topology.shards }} shard(s) x {{ .Values.clickhouse.topology.replicas }} replica(s)
+
+HTTP endpoint: {{ include "clickhouse-cluster.fullname" . }}.{{ .Release.Namespace }}:{{ .Values.clickhouse.ports.http }}
+Native endpoint: {{ include "clickhouse-cluster.fullname" . }}.{{ .Release.Namespace }}:{{ .Values.clickhouse.ports.native }}
+
+{{- if .Values.keeper.enabled }}
+Keeper: {{ include "clickhouse-cluster.keeperName" . }} ({{ .Values.keeper.replicas }} nodes)
+{{- end }}
+
+{{- if .Values.rbacJob.enabled }}
+RBAC Job: Will run as ArgoCD PostSync hook (wave {{ .Values.rbacJob.syncWave }})
+{{- end }}
+
+{{- if .Values.otelCollector.enabled }}
+OTEL Collector: {{ include "clickhouse-cluster.otelName" . }}
+  gRPC: {{ .Values.otelCollector.ports.grpc }}
+  HTTP: {{ .Values.otelCollector.ports.http }}
+{{- end }}
+
+Test connection:
+  kubectl exec -it chi-{{ include "clickhouse-cluster.fullname" . }}-*-0-0 -n {{ .Release.Namespace }} -- clickhouse-client

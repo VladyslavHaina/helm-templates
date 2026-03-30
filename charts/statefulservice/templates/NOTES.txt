@@ -1,0 +1,11 @@
+{{ include "statefulservice.fullname" . }} has been deployed.
+
+Replicas: {{ .Values.replicaCount }}
+Headless Service: {{ include "statefulservice.fullname" . }}-headless:{{ .Values.service.headless.port }}
+
+Pod DNS pattern:
+  {{ include "statefulservice.fullname" . }}-{0..{{ sub (int .Values.replicaCount) 1 }}}.{{ include "statefulservice.fullname" . }}-headless.{{ .Release.Namespace }}.svc.cluster.local
+
+{{- if .Values.service.standard.enabled }}
+Client Service: {{ include "statefulservice.fullname" . }}:{{ .Values.service.standard.port }}
+{{- end }}

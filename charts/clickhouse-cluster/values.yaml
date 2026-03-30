@@ -1,0 +1,174 @@
+# -- Cluster metadata
+cluster:
+  name: my-clickhouse
+
+fullnameOverride: ""
+
+# -- ClickHouse Installation (Altinity Operator CRD)
+clickhouse:
+  image: clickhouse/clickhouse-server:24.8
+  # -- Cluster topology
+  topology:
+    shards: 1
+    replicas: 2
+  # -- Resources per replica
+  resources:
+    limits:
+      cpu: "4"
+      memory: 8Gi
+    requests:
+      cpu: "1"
+      memory: 4Gi
+  # -- Storage
+  storage:
+    data:
+      size: 100Gi
+      storageClass: ""
+    logs:
+      size: 20Gi
+      storageClass: ""
+  # -- Service ports
+  ports:
+    http: 8123
+    native: 9000
+    interserver: 9009
+    metrics: 9363
+  # -- Prometheus metrics endpoint
+  prometheus:
+    enabled: true
+    endpoint: /metrics
+    port: 9363
+  # -- XML-level users (created at cluster startup)
+  users:
+    admin:
+      password: ""  # Use K8s Secret reference in production
+      networks:
+        ip:
+          - "10.0.0.0/8"
+          - "172.16.0.0/12"
+    extra: []
+      # - name: app_user
+      #   password: ""
+      #   profile: default
+      #   quota: default
+      #   networks:
+      #     ip: ["10.0.0.0/8"]
+  # -- Query profiles
+  profiles:
+    default:
+      max_memory_usage: 10000000000
+      max_execution_time: 300
+    readonly:
+      readonly: 1
+    extra: []
+      # - name: writer_profile
+      #   settings:
+      #     max_memory_usage: 5000000000
+  # -- Quotas
+  quotas:
+    default:
+      interval:
+        duration: 3600
+        queries: 0
+        errors: 0
+        result_rows: 0
+        read_rows: 0
+        execution_time: 0
+    extra: []
+
+# -- ClickHouse Keeper (consensus for replication)
+keeper:
+  enabled: true
+  replicas: 3
+  image: clickhouse/clickhouse-keeper:24.8
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  storage:
+    size: 10Gi
+    storageClass: ""
+
+# -- RBAC initialization Job (SQL-level users, roles, row policies)
+rbacJob:
+  enabled: false
+  image: clickhouse/clickhouse-client:24.8
+  # -- SQL users to create after cluster is healthy
+  users: []
+    # - name: app_user
+    #   identifiedByEnv: APP_USER_PASSWORD
+  # -- SQL roles and grants
+  roles: []
+    # - name: app_role
+    #   grants:
+    #     - "SELECT, INSERT ON mydb.*"
+    #   users:
+    #     - app_user
+  # -- Row-level security policies
+  rowPolicies: []
+    # - name: restrict_service_data
+    #   table: "mydb.events"
+    #   condition: "service_name = 'my-service'"
+    #   users:
+    #     - app_user
+  # -- Environment variables (for secret passwords)
+  env: []
+    # - name: APP_USER_PASSWORD
+    #   valueFrom:
+    #     secretKeyRef:
+    #       name: clickhouse-users
+    #       key: app-password
+  # -- ArgoCD sync-wave annotation
+  syncWave: "3"
+
+# -- OpenTelemetry Collector (ingest telemetry into ClickHouse)
+otelCollector:
+  enabled: false
+  image: otel/opentelemetry-collector-contrib:0.100.0
+  replicas: 2
+  resources:
+    limits:
+      cpu: "1"
+      memory: 2Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+  receivers:
+    otlp:
+      grpc:
+        port: 4317
+      http:
+        port: 4318
+  processors:
+    batch:
+      timeout: 5s
+      sendBatchSize: 10000
+    memoryLimiter:
+      limitMib: 1500
+      spikeLimitMib: 512
+      checkInterval: 5s
+  exporter:
+    endpoint: ""  # Auto-configured from cluster name if empty
+    database: otel
+    logsTableName: otel_logs
+    tracesTableName: otel_traces
+    metricsTableName: otel_metrics
+    ttl: "72h"
+    passwordSecretRef:
+      name: ""
+      key: ""
+  # -- Extensions
+  extensions:
+    healthCheck:
+      port: 13133
+  ports:
+    grpc: 4317
+    http: 4318
+    health: 13133
+  rbac:
+    enabled: true
+  serviceMonitor:
+    enabled: false

@@ -1,0 +1,62 @@
+# Flink with S3 checkpointing and Kubernetes HA
+# Usage: helm install flink ../flink-jobs -f with-checkpointing.yaml
+
+cluster:
+  name: ha-flink
+
+mode: session
+
+flinkVersion: v1_19
+
+jobManager:
+  replicas: 2
+  resources:
+    limits:
+      cpu: "2"
+      memory: 4Gi
+    requests:
+      cpu: "1"
+      memory: 2Gi
+
+taskManager:
+  replicas: 4
+  resources:
+    limits:
+      cpu: "4"
+      memory: 8Gi
+    requests:
+      cpu: "2"
+      memory: 4Gi
+
+flinkConfiguration:
+  taskmanager.numberOfTaskSlots: "4"
+  state.backend: rocksdb
+  state.backend.rocksdb.localdir: /tmp/rocksdb
+  state.checkpoints.dir: "s3://my-bucket/flink/checkpoints"
+  state.savepoints.dir: "s3://my-bucket/flink/savepoints"
+  execution.checkpointing.interval: "30000"
+  execution.checkpointing.min-pause: "15000"
+  execution.checkpointing.timeout: "600000"
+  execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+  execution.checkpointing.max-concurrent-checkpoints: "1"
+  high-availability.type: kubernetes
+  high-availability.storageDir: "s3://my-bucket/flink/ha"
+  web.cancel.enable: "true"
+  rest.flamegraph.enabled: "true"
+
+logging:
+  rootLoggerLevel: INFO
+  extraLoggers:
+    org.apache.flink.runtime.checkpoint: DEBUG
+    com.example: DEBUG
+
+ingress:
+  enabled: true
+  className: nginx
+  host: flink.example.com
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  tls:
+    - secretName: flink-tls
+      hosts:
+        - flink.example.com

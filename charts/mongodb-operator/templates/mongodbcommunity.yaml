@@ -1,0 +1,137 @@
+apiVersion: mongodbcommunity.mongodb.com/v1
+kind: MongoDBCommunity
+metadata:
+  name: {{ include "mongodb-operator.fullname" . }}
+  labels:
+    {{- include "mongodb-operator.labels" . | nindent 4 }}
+spec:
+  members: {{ .Values.replicaSet.members }}
+  type: ReplicaSet
+  version: {{ .Values.image.tag | quote }}
+  security:
+    authentication:
+      modes:
+        {{- if .Values.auth.scram.enabled }}
+        - SCRAM
+        {{- end }}
+    {{- if .Values.tls.enabled }}
+    tls:
+      enabled: true
+      certificateKeySecretRef:
+        name: {{ .Values.tls.certificateSecretRef.name }}
+      caConfigMapRef:
+        name: {{ .Values.tls.caConfigMapRef.name }}
+    {{- end }}
+  users:
+    - name: {{ .Values.auth.adminUser.name }}
+      db: {{ .Values.auth.adminUser.database }}
+      passwordSecretRef:
+        name: {{ .Values.auth.adminUser.passwordSecretRef.name }}
+        key: {{ .Values.auth.adminUser.passwordSecretRef.key | default "password" }}
+      roles:
+        {{- range .Values.auth.adminUser.roles }}
+        - name: {{ .name }}
+          db: {{ .db }}
+        {{- end }}
+      scramCredentialsSecretName: {{ include "mongodb-operator.fullname" . }}-admin-scram
+    {{- range .Values.users }}
+    - name: {{ .name }}
+      db: {{ .database }}
+      passwordSecretRef:
+        name: {{ .passwordSecretRef.name }}
+        key: {{ .passwordSecretRef.key | default "password" }}
+      roles:
+        {{- range .roles }}
+        - name: {{ .name }}
+          db: {{ .db }}
+        {{- end }}
+      scramCredentialsSecretName: {{ include "mongodb-operator.fullname" $ }}-{{ .name }}-scram
+    {{- end }}
+  {{- if .Values.customRoles }}
+  roles:
+    {{- range .Values.customRoles }}
+    - role: {{ .name }}
+      db: {{ .db }}
+      privileges:
+        {{- range .privileges }}
+        - resource:
+            db: {{ .resource.db | quote }}
+            collection: {{ .resource.collection | quote }}
+          actions:
+            {{- range .actions }}
+            - {{ . }}
+            {{- end }}
+        {{- end }}
+      {{- with .roles }}
+      roles:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  additionalMongodConfig:
+    storage:
+      journal:
+        commitIntervalMs: {{ .Values.config.storage.journal.commitIntervalMs }}
+      wiredTiger:
+        engineConfig:
+          journalCompressor: {{ .Values.config.storage.wiredTiger.engineConfig.journalCompressor }}
+    {{- with .Values.config.extra }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  statefulSet:
+    spec:
+      template:
+        spec:
+          {{- if .Values.scheduling.podAntiAffinity.enabled }}
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    labelSelector:
+                      matchLabels:
+                        app: {{ include "mongodb-operator.fullname" . }}-svc
+                    topologyKey: {{ .Values.scheduling.podAntiAffinity.topologyKey }}
+          {{- end }}
+          {{- with .Values.scheduling.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.scheduling.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.podSecurityContext }}
+          securityContext:
+            {{- toYaml .Values.podSecurityContext | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: mongod
+              resources:
+                {{- toYaml .Values.resources.mongod | nindent 16 }}
+            - name: mongodb-agent
+              resources:
+                {{- toYaml .Values.resources.agent | nindent 16 }}
+      volumeClaimTemplates:
+        - metadata:
+            name: data-volume
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            {{- if .Values.storage.data.storageClass }}
+            storageClassName: {{ .Values.storage.data.storageClass | quote }}
+            {{- end }}
+            resources:
+              requests:
+                storage: {{ .Values.storage.data.size }}
+        - metadata:
+            name: logs-volume
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            {{- if .Values.storage.logs.storageClass }}
+            storageClassName: {{ .Values.storage.logs.storageClass | quote }}
+            {{- end }}
+            resources:
+              requests:
+                storage: {{ .Values.storage.logs.size }}

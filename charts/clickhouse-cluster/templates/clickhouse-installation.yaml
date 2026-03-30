@@ -1,0 +1,138 @@
+apiVersion: "clickhouse.altinity.com/v1"
+kind: "ClickHouseInstallation"
+metadata:
+  name: {{ include "clickhouse-cluster.fullname" . }}
+  labels:
+    {{- include "clickhouse-cluster.labels" . | nindent 4 }}
+spec:
+  defaults:
+    templates:
+      podTemplate: clickhouse-pod
+      dataVolumeClaimTemplate: data-volume
+      logVolumeClaimTemplate: log-volume
+      serviceTemplate: clickhouse-service
+  configuration:
+    {{- if .Values.clickhouse.prometheus.enabled }}
+    files:
+      config.d/prometheus.xml: |
+        <clickhouse>
+          <prometheus>
+            <endpoint>{{ .Values.clickhouse.prometheus.endpoint }}</endpoint>
+            <port>{{ .Values.clickhouse.prometheus.port }}</port>
+            <metrics>true</metrics>
+            <events>true</events>
+            <asynchronous_metrics>true</asynchronous_metrics>
+          </prometheus>
+        </clickhouse>
+    {{- end }}
+    {{- if .Values.keeper.enabled }}
+    zookeeper:
+      nodes:
+        {{- $keeperName := include "clickhouse-cluster.keeperName" . }}
+        {{- range $i := until (int .Values.keeper.replicas) }}
+        - host: {{ $keeperName }}-{{ $i }}.{{ $keeperName }}.{{ $.Release.Namespace }}.svc.cluster.local
+          port: 2181
+        {{- end }}
+    {{- end }}
+    users:
+      {{- if .Values.clickhouse.users.admin.password }}
+      admin/password: {{ .Values.clickhouse.users.admin.password | quote }}
+      {{- end }}
+      admin/networks/ip:
+        {{- range .Values.clickhouse.users.admin.networks.ip }}
+        - {{ . }}
+        {{- end }}
+      {{- range .Values.clickhouse.users.extra }}
+      {{ .name }}/password: {{ .password | default "" | quote }}
+      {{- if .profile }}
+      {{ .name }}/profile: {{ .profile }}
+      {{- end }}
+      {{- if .quota }}
+      {{ .name }}/quota: {{ .quota }}
+      {{- end }}
+      {{- if .networks }}
+      {{ .name }}/networks/ip:
+        {{- range .networks.ip }}
+        - {{ . }}
+        {{- end }}
+      {{- end }}
+      {{- end }}
+    profiles:
+      default/max_memory_usage: {{ .Values.clickhouse.profiles.default.max_memory_usage }}
+      default/max_execution_time: {{ .Values.clickhouse.profiles.default.max_execution_time }}
+      {{- if .Values.clickhouse.profiles.readonly }}
+      readonly/readonly: {{ .Values.clickhouse.profiles.readonly.readonly }}
+      {{- end }}
+      {{- range .Values.clickhouse.profiles.extra }}
+      {{- range $key, $value := .settings }}
+      {{ $.name }}/{{ $key }}: {{ $value }}
+      {{- end }}
+      {{- end }}
+    quotas:
+      default/interval/duration: {{ .Values.clickhouse.quotas.default.interval.duration }}
+      default/interval/queries: {{ .Values.clickhouse.quotas.default.interval.queries }}
+      default/interval/errors: {{ .Values.clickhouse.quotas.default.interval.errors }}
+      default/interval/result_rows: {{ .Values.clickhouse.quotas.default.interval.result_rows }}
+      default/interval/read_rows: {{ .Values.clickhouse.quotas.default.interval.read_rows }}
+      default/interval/execution_time: {{ .Values.clickhouse.quotas.default.interval.execution_time }}
+    clusters:
+      - name: {{ include "clickhouse-cluster.name" . }}
+        layout:
+          shardsCount: {{ .Values.clickhouse.topology.shards }}
+          replicasCount: {{ .Values.clickhouse.topology.replicas }}
+  templates:
+    podTemplates:
+      - name: clickhouse-pod
+        spec:
+          containers:
+            - name: clickhouse
+              image: {{ .Values.clickhouse.image }}
+              resources:
+                {{- toYaml .Values.clickhouse.resources | nindent 16 }}
+              ports:
+                - name: http
+                  containerPort: {{ .Values.clickhouse.ports.http }}
+                - name: native
+                  containerPort: {{ .Values.clickhouse.ports.native }}
+                - name: interserver
+                  containerPort: {{ .Values.clickhouse.ports.interserver }}
+                {{- if .Values.clickhouse.prometheus.enabled }}
+                - name: metrics
+                  containerPort: {{ .Values.clickhouse.prometheus.port }}
+                {{- end }}
+    volumeClaimTemplates:
+      - name: data-volume
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          {{- if .Values.clickhouse.storage.data.storageClass }}
+          storageClassName: {{ .Values.clickhouse.storage.data.storageClass | quote }}
+          {{- end }}
+          resources:
+            requests:
+              storage: {{ .Values.clickhouse.storage.data.size }}
+      - name: log-volume
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          {{- if .Values.clickhouse.storage.logs.storageClass }}
+          storageClassName: {{ .Values.clickhouse.storage.logs.storageClass | quote }}
+          {{- end }}
+          resources:
+            requests:
+              storage: {{ .Values.clickhouse.storage.logs.size }}
+    serviceTemplates:
+      - name: clickhouse-service
+        spec:
+          ports:
+            - name: http
+              port: {{ .Values.clickhouse.ports.http }}
+            - name: native
+              port: {{ .Values.clickhouse.ports.native }}
+            - name: interserver
+              port: {{ .Values.clickhouse.ports.interserver }}
+            {{- if .Values.clickhouse.prometheus.enabled }}
+            - name: metrics
+              port: {{ .Values.clickhouse.prometheus.port }}
+            {{- end }}
+          type: ClusterIP

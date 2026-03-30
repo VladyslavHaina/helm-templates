@@ -1,0 +1,23 @@
+# Basic VirtualService routing
+# Usage: helm install routing ../istio-routing -f simple-routing.yaml
+
+virtualServices:
+  - name: my-api-vs
+    hosts:
+      - "api.example.com"
+    gateways:
+      - "istio-system/wildcard-gateway"
+    http:
+      - match:
+          - uri:
+              prefix: /
+        route:
+          - destination:
+              host: my-api-service
+              port:
+                number: 8080
+        timeout: 30s
+        retries:
+          attempts: 3
+          perTryTimeout: 10s
+          retryOn: "5xx,reset,connect-failure"

@@ -1,0 +1,104 @@
+# AWS EKS with IRSA, Istio, and Secrets Manager CSI
+# Usage: helm install my-api ../microservice -f aws-irsa-istio.yaml
+
+app:
+  name: payment-service
+
+image:
+  repository: 123456789012.dkr.ecr.us-east-1.amazonaws.com/payment-service
+  tag: "3.2.1"
+
+replicaCount: 3
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+service:
+  enabled: true
+  port: 80
+  targetPort: 8080
+
+# -- AWS IRSA Service Account
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/payment-service-role
+  automountServiceAccountToken: true
+
+# -- Secrets from AWS Secrets Manager via CSI
+secrets:
+  csi:
+    enabled: true
+    provider: aws
+    aws:
+      secretArn: "arn:aws:secretsmanager:us-east-1:123456789012:secret:payment-service/prod"
+      keys:
+        - objectName: payment-secrets
+          objectAlias: payment-secrets
+          jmesPath:
+            - path: db_password
+              objectAlias: DB_PASSWORD
+            - path: stripe_api_key
+              objectAlias: STRIPE_API_KEY
+            - path: jwt_secret
+              objectAlias: JWT_SECRET
+    syncAsKubernetesSecret:
+      enabled: true
+      secretName: payment-service-secrets
+      type: Opaque
+      data:
+        - objectName: DB_PASSWORD
+          key: db-password
+        - objectName: STRIPE_API_KEY
+          key: stripe-api-key
+
+# -- Istio VirtualService
+istio:
+  enabled: true
+  virtualService:
+    hosts:
+      - "payment.example.com"
+    gateways:
+      - "istio-system/wildcard-gateway"
+    http:
+      - match:
+          - uri:
+              prefix: /api/v1/payments
+        route:
+          - destination:
+              port:
+                number: 80
+        timeout: 30s
+        retries:
+          attempts: 3
+          perTryTimeout: 10s
+          retryOn: "5xx,reset,connect-failure"
+  destinationRule:
+    enabled: true
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 100
+        http:
+          http2MaxRequests: 1000
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+scheduling:
+  podAntiAffinity:
+    enabled: true
+    type: preferred
+    topologyKey: topology.kubernetes.io/zone

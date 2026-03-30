@@ -1,0 +1,6 @@
+apiVersion: v2
+name: observability-stack
+description: Production-ready observability stack with OpenTelemetry Collector, configurable storage backend (ClickHouse, Elasticsearch), and UI (HyperDX, Grafana)
+version: 1.0.0
+type: application
+appVersion: "1.0.0"

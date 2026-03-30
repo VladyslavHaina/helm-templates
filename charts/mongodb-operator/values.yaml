@@ -1,0 +1,147 @@
+# -- Cluster metadata
+cluster:
+  name: my-mongodb
+
+fullnameOverride: ""
+
+# -- MongoDB image
+image:
+  repository: mongo
+  tag: "7.0"
+
+# -- Replica set configuration
+replicaSet:
+  members: 3  # 1, 3, or 5
+
+# -- Resources per member
+resources:
+  mongod:
+    limits:
+      cpu: "2"
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 2Gi
+  agent:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+# -- Storage
+storage:
+  data:
+    size: 50Gi
+    storageClass: ""
+  logs:
+    size: 10Gi
+    storageClass: ""
+
+# -- Authentication
+auth:
+  scram:
+    enabled: true
+  # -- Admin user
+  adminUser:
+    name: admin
+    passwordSecretRef:
+      name: mongodb-admin-password
+      key: password
+    database: admin
+    roles:
+      - name: clusterAdmin
+        db: admin
+      - name: userAdminAnyDatabase
+        db: admin
+      - name: readWriteAnyDatabase
+        db: admin
+
+# -- Additional users
+users: []
+  # - name: app-user
+  #   database: admin
+  #   passwordSecretRef:
+  #     name: mongodb-app-password
+  #     key: password
+  #   roles:
+  #     - name: readWrite
+  #       db: mydb
+
+# -- Custom roles (e.g., for CDC/Change Streams)
+customRoles: []
+  # - name: cdc-role
+  #   db: admin
+  #   privileges:
+  #     - resource:
+  #         db: ""
+  #         collection: ""
+  #       actions:
+  #         - changeStream
+  #         - find
+  #         - listDatabases
+  #         - listCollections
+  #   roles: []
+
+# -- TLS
+tls:
+  enabled: false
+  certificateSecretRef:
+    name: ""
+  caConfigMapRef:
+    name: ""
+
+# -- MongoDB configuration
+config:
+  storage:
+    journal:
+      commitIntervalMs: 100
+    wiredTiger:
+      engineConfig:
+        journalCompressor: zlib
+  extra: {}
+
+# -- Monitoring
+monitoring:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+  exporter:
+    enabled: false
+    image: percona/mongodb_exporter:0.40
+    port: 9216
+
+# -- Per-service database pattern
+databases: []
+  # - name: service-a-db
+  #   members: 3
+  #   storage:
+  #     data:
+  #       size: 20Gi
+  #   users:
+  #     - name: service-a-user
+  #       passwordSecretRef:
+  #         name: service-a-db-password
+  #         key: password
+  #       roles:
+  #         - name: readWrite
+  #           db: service-a-db
+
+# -- Pod scheduling
+scheduling:
+  nodeSelector: {}
+  tolerations: []
+  podAntiAffinity:
+    enabled: true
+    topologyKey: topology.kubernetes.io/zone
+
+# -- Security context
+podSecurityContext:
+  runAsNonRoot: true
+
+# -- Network Policy
+networkPolicy:
+  enabled: false
+  ingress: []
+  egress: []

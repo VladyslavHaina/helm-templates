@@ -1,0 +1,17 @@
+Istio routing resources deployed:
+
+{{- if .Values.gateway.enabled }}
+Gateway: {{ .Values.gateway.name }}
+{{- end }}
+
+VirtualServices:
+{{- range .Values.virtualServices }}
+  - {{ .name }}:
+    {{- range .hosts }}
+    https://{{ . }}
+    {{- end }}
+{{- end }}
+
+{{- if .Values.peerAuthentication.enabled }}
+mTLS: {{ .Values.peerAuthentication.mtls.mode }}
+{{- end }}

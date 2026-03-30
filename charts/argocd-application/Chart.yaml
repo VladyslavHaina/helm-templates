@@ -1,0 +1,6 @@
+apiVersion: v2
+name: argocd-application
+description: ArgoCD Application and AppProject chart with multi-source support, sync-waves, RBAC, and automated sync policies
+version: 1.0.0
+type: application
+appVersion: "1.0.0"

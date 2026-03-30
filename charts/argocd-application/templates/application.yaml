@@ -1,0 +1,100 @@
+{{- range .Values.applications }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ .name }}
+  namespace: {{ $.Values.argocdNamespace }}
+  labels:
+    {{- include "argocd-application.labels" $ | nindent 4 }}
+  {{- with .annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  project: {{ .project }}
+  destination:
+    namespace: {{ .destination.namespace }}
+    server: {{ .destination.server }}
+  {{- if eq .sourceType "multi" }}
+  sources:
+    {{- range .sources }}
+    - repoURL: {{ .repoURL | quote }}
+      {{- if .chart }}
+      chart: {{ .chart }}
+      {{- end }}
+      targetRevision: {{ .targetRevision | quote }}
+      {{- if .path }}
+      path: {{ .path | quote }}
+      {{- end }}
+      {{- if .ref }}
+      ref: {{ .ref }}
+      {{- end }}
+      {{- if .helm }}
+      helm:
+        {{- if .helm.releaseName }}
+        releaseName: {{ .helm.releaseName }}
+        {{- end }}
+        {{- if .helm.valueFiles }}
+        valueFiles:
+          {{- range .helm.valueFiles }}
+          - {{ . }}
+          {{- end }}
+        {{- end }}
+        {{- with .helm.parameters }}
+        parameters:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- else }}
+  source:
+    repoURL: {{ .source.repoURL | quote }}
+    targetRevision: {{ .source.targetRevision | quote }}
+    {{- if .source.path }}
+    path: {{ .source.path | quote }}
+    {{- end }}
+    {{- if .source.chart }}
+    chart: {{ .source.chart }}
+    {{- end }}
+    {{- if .source.helm }}
+    helm:
+      {{- if .source.helm.releaseName }}
+      releaseName: {{ .source.helm.releaseName }}
+      {{- end }}
+      {{- if .source.helm.valueFiles }}
+      valueFiles:
+        {{- range .source.helm.valueFiles }}
+        - {{ . }}
+        {{- end }}
+      {{- end }}
+      {{- with .source.helm.parameters }}
+      parameters:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- if eq .sourceType "kustomize" }}
+    kustomize: {}
+    {{- end }}
+  {{- end }}
+  {{- if .syncPolicy }}
+  syncPolicy:
+    {{- if .syncPolicy.automated }}
+    automated:
+      prune: {{ .syncPolicy.automated.prune | default false }}
+      selfHeal: {{ .syncPolicy.automated.selfHeal | default false }}
+    {{- end }}
+    {{- with .syncPolicy.syncOptions }}
+    syncOptions:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .syncPolicy.retry }}
+    retry:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- with .ignoreDifferences }}
+  ignoreDifferences:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

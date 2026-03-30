@@ -1,0 +1,47 @@
+# Minimal single-replica for development
+# Usage: helm install my-db ../statefulservice -f minimal.yaml
+
+app:
+  name: dev-db
+
+image:
+  repository: postgres
+  tag: "16-alpine"
+
+replicaCount: 1
+
+volumeClaimTemplates:
+  - name: data
+    accessModes:
+      - ReadWriteOnce
+    size: 5Gi
+
+service:
+  headless:
+    enabled: true
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+
+env:
+  - name: POSTGRES_DB
+    value: devdb
+  - name: POSTGRES_USER
+    value: dev
+  - name: POSTGRES_PASSWORD
+    value: dev-password
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+podSecurityContext:
+  runAsNonRoot: false
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false

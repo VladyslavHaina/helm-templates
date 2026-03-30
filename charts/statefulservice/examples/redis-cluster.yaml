@@ -1,0 +1,76 @@
+# Redis 3-node cluster with persistence
+# Usage: helm install my-redis ../statefulservice -f redis-cluster.yaml
+
+app:
+  name: redis
+
+image:
+  repository: redis
+  tag: "7.2-alpine"
+
+replicaCount: 3
+podManagementPolicy: Parallel
+
+service:
+  headless:
+    enabled: true
+    port: 6379
+    targetPort: 6379
+    protocol: TCP
+  standard:
+    enabled: true
+    type: ClusterIP
+    port: 6379
+    targetPort: 6379
+
+volumeClaimTemplates:
+  - name: data
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+
+command:
+  - redis-server
+args:
+  - --appendonly
+  - "yes"
+  - --maxmemory
+  - "2gb"
+  - --maxmemory-policy
+  - allkeys-lru
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 3Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+probes:
+  liveness:
+    enabled: true
+    tcpSocket:
+      port: 6379
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    tcpSocket:
+      port: 6379
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+scheduling:
+  podAntiAffinity:
+    enabled: true
+    type: required
+    topologyKey: topology.kubernetes.io/zone
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2

@@ -1,0 +1,109 @@
+nameOverride: ""
+fullnameOverride: ""
+
+# -- Gateway configuration (shared ingress gateway)
+gateway:
+  enabled: false
+  name: my-gateway
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: my-tls-cert
+      hosts:
+        - "*.example.com"
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      tls:
+        httpsRedirect: true
+      hosts:
+        - "*.example.com"
+
+# -- VirtualService configurations (list — one per service)
+virtualServices:
+  - name: my-service
+    hosts:
+      - "my-service.example.com"
+    gateways:
+      - istio-system/my-gateway
+    http:
+      - match:
+          - uri:
+              prefix: /api
+        route:
+          - destination:
+              host: my-api-service
+              port:
+                number: 8080
+            weight: 100
+        timeout: 30s
+        retries:
+          attempts: 3
+          perTryTimeout: 10s
+          retryOn: "5xx,reset,connect-failure"
+      - match:
+          - uri:
+              prefix: /
+        route:
+          - destination:
+              host: my-frontend
+              port:
+                number: 80
+
+# -- DestinationRule configurations (list)
+destinationRules: []
+  # - name: my-service-dr
+  #   host: my-service
+  #   trafficPolicy:
+  #     connectionPool:
+  #       tcp:
+  #         maxConnections: 100
+  #       http:
+  #         h2UpgradePolicy: DEFAULT
+  #         http1MaxPendingRequests: 100
+  #         http2MaxRequests: 1000
+  #     loadBalancer:
+  #       simple: ROUND_ROBIN
+  #     outlierDetection:
+  #       consecutive5xxErrors: 5
+  #       interval: 30s
+  #       baseEjectionTime: 30s
+  #       maxEjectionPercent: 50
+  #   subsets: []
+  #     - name: v1
+  #       labels:
+  #         version: v1
+
+# -- AuthorizationPolicy configurations (list)
+authorizationPolicies: []
+  # - name: allow-frontend
+  #   action: ALLOW
+  #   rules:
+  #     - from:
+  #         - source:
+  #             namespaces: ["frontend"]
+  #       to:
+  #         - operation:
+  #             methods: ["GET", "POST"]
+  #             paths: ["/api/*"]
+
+# -- PeerAuthentication (mTLS settings)
+peerAuthentication:
+  enabled: false
+  mtls:
+    mode: STRICT  # STRICT, PERMISSIVE, DISABLE
+
+# -- Sidecar resource configuration
+sidecar:
+  enabled: false
+  egress:
+    - hosts:
+        - "./*"
+        - "istio-system/*"

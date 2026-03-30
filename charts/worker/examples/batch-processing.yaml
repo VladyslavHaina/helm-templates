@@ -1,0 +1,46 @@
+# Parallel batch processing job (indexed completions)
+# Usage: helm install batch-job ../worker -f batch-processing.yaml
+
+app:
+  name: batch-processor
+
+type: job
+
+image:
+  repository: my-registry/batch-processor
+  tag: "3.1.0"
+
+command:
+  - /bin/sh
+  - -c
+args:
+  - |
+    echo "Processing partition $JOB_COMPLETION_INDEX of 10..."
+    ./process --partition=$JOB_COMPLETION_INDEX --total=10
+    echo "Partition $JOB_COMPLETION_INDEX complete."
+
+job:
+  backoffLimit: 2
+  activeDeadlineSeconds: 3600
+  ttlSecondsAfterFinished: 1800
+  completions: 10
+  parallelism: 5
+  completionMode: Indexed
+  restartPolicy: OnFailure
+
+resources:
+  limits:
+    cpu: "2"
+    memory: 4Gi
+  requests:
+    cpu: "1"
+    memory: 2Gi
+
+scheduling:
+  tolerations:
+    - key: workload-type
+      operator: Equal
+      value: batch
+      effect: NoSchedule
+  nodeSelector:
+    node-type: batch

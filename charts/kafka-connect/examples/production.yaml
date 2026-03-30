@@ -1,0 +1,72 @@
+# Full production — OTEL tracing, JMX metrics, connector monitor, HPA
+# Usage: helm install connect ../kafka-connect -f production.yaml
+
+app:
+  name: prod-connect
+
+replicaCount: 3
+
+kafka:
+  bootstrapServers: "kafka-1:9096,kafka-2:9096,kafka-3:9096"
+  securityProtocol: SASL_SSL
+  sasl:
+    mechanism: SCRAM-SHA-512
+    credentialsSecret:
+      name: kafka-credentials
+      usernameKey: username
+      passwordKey: password
+
+connect:
+  groupId: prod-connect
+  configStorageReplicationFactor: 3
+  offsetStorageReplicationFactor: 3
+  statusStorageReplicationFactor: 3
+
+otelAgent:
+  enabled: true
+  version: "2.4.0"
+  endpoint: "http://otel-collector.monitoring:4317"
+  serviceName: kafka-connect
+  samplingRatio: "0.05"
+
+jmxExporter:
+  enabled: true
+  version: "1.0.1"
+  port: 9404
+
+connectorMonitor:
+  enabled: true
+  intervalSeconds: 30
+  autoRestart: true
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+resources:
+  limits:
+    cpu: "4"
+    memory: 8Gi
+  requests:
+    cpu: "1"
+    memory: 4Gi
+
+jvm:
+  heapSize: 4g
+  gcOpts: "-XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:InitiatingHeapOccupancyPercent=35"
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+
+scheduling:
+  podAntiAffinity:
+    enabled: true
+    type: required
+    topologyKey: topology.kubernetes.io/zone

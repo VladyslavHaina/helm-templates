@@ -1,0 +1,33 @@
+# HashiCorp Vault with Kubernetes auth
+# Usage: helm install secrets ../secrets-csi -f hashicorp-vault.yaml
+
+provider: vault
+
+serviceAccount:
+  create: true
+  name: my-app-sa
+
+vault:
+  address: "https://vault.example.com:8200"
+  roleName: my-app-role
+  authMethod: kubernetes
+  namespace: ""
+  secrets:
+    - secretPath: "secret/data/my-app/database"
+      objectName: db-password
+      secretKey: password
+    - secretPath: "secret/data/my-app/api"
+      objectName: api-key
+      secretKey: key
+    - secretPath: "secret/data/my-app/tls"
+      objectName: tls-cert
+      secretKey: certificate
+  syncAsKubernetesSecret:
+    enabled: true
+    secretName: my-app-vault-secrets
+    type: Opaque
+    data:
+      - objectName: db-password
+        key: db-password
+      - objectName: api-key
+        key: api-key

@@ -1,0 +1,17 @@
+# Basic deny-all with same-namespace allowed
+# Usage: helm install netpol ../network-policies -f basic-deny-all.yaml
+
+denyAllIngress:
+  enabled: true
+
+allowSameNamespace:
+  enabled: true
+
+allowFromMonitoring:
+  enabled: true
+  namespaceLabel:
+    key: kubernetes.io/metadata.name
+    value: monitoring
+
+allowDNS:
+  enabled: true

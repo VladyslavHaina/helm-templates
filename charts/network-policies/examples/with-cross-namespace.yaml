@@ -1,0 +1,36 @@
+# Cross-namespace rules: frontend -> backend, backend -> database
+# Usage: helm install netpol ../network-policies -f with-cross-namespace.yaml
+
+denyAllIngress:
+  enabled: true
+
+allowSameNamespace:
+  enabled: true
+
+allowFromMonitoring:
+  enabled: true
+
+allowDNS:
+  enabled: true
+
+allowFromNamespaces:
+  - name: allow-from-frontend
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: frontend
+    ports:
+      - port: 8080
+        protocol: TCP
+
+  - name: allow-from-api-gateway
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: gateway
+    podSelector:
+      matchLabels:
+        app: api-gateway
+    ports:
+      - port: 8080
+        protocol: TCP
+      - port: 9090
+        protocol: TCP

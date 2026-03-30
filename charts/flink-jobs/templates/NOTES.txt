@@ -1,0 +1,24 @@
+Flink {{ .Values.mode }} cluster deployed:
+
+Cluster: {{ include "flink-jobs.fullname" . }}
+Mode: {{ .Values.mode }}
+JobManager: {{ .Values.jobManager.replicas }} replica(s)
+TaskManager: {{ .Values.taskManager.replicas }} replica(s) x {{ .Values.taskManager.taskSlots }} slots
+
+{{- if eq .Values.mode "session" }}
+{{- if .Values.sessionJobs }}
+Session Jobs:
+{{- range .Values.sessionJobs }}
+  - {{ .name }} (parallelism: {{ .parallelism | default 1 }}, upgrade: {{ .upgradeMode | default "last-state" }})
+{{- end }}
+{{- end }}
+{{- else }}
+Application Job:
+  JAR: {{ .Values.applicationJob.jarURI }}
+  Entry: {{ .Values.applicationJob.entryClass }}
+  Parallelism: {{ .Values.applicationJob.parallelism }}
+{{- end }}
+
+Flink Web UI:
+  kubectl port-forward svc/{{ include "flink-jobs.fullname" . }}-rest 8081:8081 -n {{ .Release.Namespace }}
+  Open: http://localhost:8081

@@ -1,0 +1,75 @@
+# PostgreSQL StatefulSet
+# Usage: helm install my-postgres ../statefulservice -f postgresql.yaml
+
+app:
+  name: postgresql
+
+image:
+  repository: postgres
+  tag: "16-alpine"
+
+replicaCount: 1
+
+service:
+  headless:
+    enabled: true
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+  standard:
+    enabled: true
+    type: ClusterIP
+    port: 5432
+    targetPort: 5432
+
+volumeClaimTemplates:
+  - name: data
+    accessModes:
+      - ReadWriteOnce
+    size: 50Gi
+
+env:
+  - name: POSTGRES_DB
+    value: myapp
+  - name: POSTGRES_USER
+    value: appuser
+  - name: POSTGRES_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: postgres-credentials
+        key: password
+  - name: PGDATA
+    value: /data/data/pgdata
+
+resources:
+  limits:
+    cpu: "2"
+    memory: 4Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+probes:
+  liveness:
+    enabled: true
+    tcpSocket:
+      port: 5432
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    tcpSocket:
+      port: 5432
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL

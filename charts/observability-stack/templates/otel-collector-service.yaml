@@ -1,0 +1,25 @@
+{{- if .Values.otelCollector.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "observability-stack.otelName" . }}
+  labels:
+    {{- include "observability-stack.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: grpc
+      port: {{ .Values.otelCollector.ports.grpc }}
+      targetPort: grpc
+    - name: http
+      port: {{ .Values.otelCollector.ports.http }}
+      targetPort: http
+    - name: health
+      port: {{ .Values.otelCollector.ports.health }}
+      targetPort: health
+    - name: metrics
+      port: {{ .Values.otelCollector.ports.metrics }}
+      targetPort: metrics
+  selector:
+    app.kubernetes.io/name: {{ include "observability-stack.otelName" . }}
+{{- end }}

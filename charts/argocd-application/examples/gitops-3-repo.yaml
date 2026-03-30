@@ -1,0 +1,74 @@
+# 3-repo GitOps pattern: configs, bootstrap, manifests
+# Usage: helm install bootstrap ../argocd-application -f gitops-3-repo.yaml
+
+project:
+  enabled: true
+  name: myorg-prod-project
+  description: "Production environment"
+  destinations:
+    - namespace: "*"
+      server: "https://kubernetes.default.svc"
+  sourceRepos:
+    - "https://github.com/my-org/argocd-configs.git"
+    - "https://github.com/my-org/argocd-bootstrap.git"
+    - "https://github.com/my-org/app-manifests.git"
+    - "https://charts.jetstack.io"
+    - "https://argoproj.github.io/argo-helm"
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  roles:
+    - name: ci-deployer
+      description: "CI/CD deployment role"
+      policies:
+        - "p, proj:myorg-prod-project:ci-deployer, applications, sync, myorg-prod-project/*, allow"
+        - "p, proj:myorg-prod-project:ci-deployer, applications, get, myorg-prod-project/*, allow"
+      groups:
+        - ci-deployers
+
+applications:
+  # Bootstrap app — "app of apps" pattern
+  - name: prod-bootstrap
+    sourceType: directory
+    project: myorg-prod-project
+    destination:
+      namespace: argocd
+      server: "https://kubernetes.default.svc"
+    source:
+      repoURL: "https://github.com/my-org/argocd-bootstrap.git"
+      targetRevision: HEAD
+      path: "./prod"
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - PruneLast=true
+        - CreateNamespace=true
+
+  # Config app — namespaces, RBAC, secrets
+  - name: prod-configs
+    sourceType: directory
+    project: myorg-prod-project
+    destination:
+      namespace: argocd
+      server: "https://kubernetes.default.svc"
+    source:
+      repoURL: "https://github.com/my-org/argocd-configs.git"
+      targetRevision: HEAD
+      path: "./prod/argocd_configs"
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+    annotations:
+      argocd.argoproj.io/sync-wave: "-1"
+
+namespaces:
+  - name: backend
+    labels:
+      istio-injection: enabled
+  - name: frontend
+    labels:
+      istio-injection: enabled
+  - name: data-pipeline

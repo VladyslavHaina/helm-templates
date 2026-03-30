@@ -1,0 +1,6 @@
+apiVersion: v2
+name: istio-routing
+description: Istio traffic management chart with Gateway, VirtualService, DestinationRule, AuthorizationPolicy, and PeerAuthentication
+version: 1.0.0
+type: application
+appVersion: "1.0.0"

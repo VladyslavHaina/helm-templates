@@ -1,0 +1,23 @@
+MongoDB replica set deployed:
+
+Name: {{ include "mongodb-operator.fullname" . }}
+Members: {{ .Values.replicaSet.members }}
+
+Connection string:
+  mongodb://{{ include "mongodb-operator.fullname" . }}-svc.{{ .Release.Namespace }}.svc.cluster.local:27017/?replicaSet={{ include "mongodb-operator.fullname" . }}
+
+Users:
+  - {{ .Values.auth.adminUser.name }} (admin)
+{{- range .Values.users }}
+  - {{ .name }}
+{{- end }}
+
+{{- if .Values.databases }}
+Per-service databases:
+{{- range .Values.databases }}
+  - {{ .name }} ({{ .members | default 3 }} members)
+{{- end }}
+{{- end }}
+
+Check status:
+  kubectl get mongodbcommunity -n {{ .Release.Namespace }}

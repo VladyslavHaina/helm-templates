@@ -1,0 +1,56 @@
+# OTEL Collector only — for ingesting telemetry into an existing ClickHouse
+# Usage: helm install otel ../clickhouse-cluster -f observability-ingest.yaml
+
+cluster:
+  name: otel-ingest
+
+clickhouse:
+  topology:
+    shards: 1
+    replicas: 1
+  storage:
+    data:
+      size: 10Gi
+
+keeper:
+  enabled: false
+
+rbacJob:
+  enabled: false
+
+otelCollector:
+  enabled: true
+  replicas: 2
+  resources:
+    limits:
+      cpu: "1"
+      memory: 2Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+  receivers:
+    otlp:
+      grpc:
+        port: 4317
+      http:
+        port: 4318
+  processors:
+    batch:
+      timeout: 10s
+      sendBatchSize: 5000
+    memoryLimiter:
+      limitMib: 1500
+      spikeLimitMib: 500
+      checkInterval: 5s
+  exporter:
+    endpoint: "tcp://clickhouse.analytics.svc.cluster.local:9000"
+    database: otel
+    logsTableName: otel_logs
+    tracesTableName: otel_traces
+    metricsTableName: otel_metrics
+    ttl: "72h"
+    passwordSecretRef:
+      name: otel-clickhouse-credentials
+      key: password
+  rbac:
+    enabled: true

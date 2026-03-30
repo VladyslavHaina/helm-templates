@@ -1,0 +1,97 @@
+nameOverride: ""
+fullnameOverride: ""
+
+# -- ArgoCD namespace (where Application CRDs live)
+argocdNamespace: argocd
+
+# -- ArgoCD Project
+project:
+  enabled: true
+  name: my-project
+  description: "My application project"
+  # -- Allowed destinations
+  destinations:
+    - namespace: "*"
+      server: "https://kubernetes.default.svc"
+  # -- Allowed source repositories
+  sourceRepos:
+    - "*"
+  # -- Cluster resource whitelist
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  # -- Namespace resource blacklist
+  namespaceResourceBlacklist: []
+  # -- RBAC roles for CI/CD and teams
+  roles: []
+    # - name: ci-role
+    #   description: "CI/CD role"
+    #   policies:
+    #     - "p, proj:my-project:ci-role, applications, *, my-project/*, allow"
+    #   groups:
+    #     - my-ci-group
+
+# -- ArgoCD Applications (list — deploy multiple apps from one chart)
+applications:
+  - name: my-app
+    # -- Source type: helm, directory, kustomize, or multi
+    sourceType: helm
+    # -- Destination cluster and namespace
+    destination:
+      namespace: default
+      server: "https://kubernetes.default.svc"
+    # -- Project reference
+    project: my-project
+    # -- Single source
+    source:
+      repoURL: "https://github.com/your-org/your-repo.git"
+      targetRevision: HEAD
+      path: "charts/my-app"
+      helm:
+        releaseName: my-app
+        valueFiles:
+          - values.yaml
+        # parameters:
+        #   - name: image.tag
+        #     value: "latest"
+    # -- Multi-source (when sourceType: multi)
+    sources: []
+      # - repoURL: "https://charts.example.com"
+      #   chart: my-chart
+      #   targetRevision: "1.0.0"
+      #   helm:
+      #     releaseName: my-release
+      # - repoURL: "https://github.com/your-org/your-values.git"
+      #   targetRevision: HEAD
+      #   ref: values
+    # -- Sync policy
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+        - PruneLast=true
+        - ServerSideApply=true
+      retry:
+        limit: 5
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 3m
+    # -- Ignore differences (prevent drift detection on specific fields)
+    ignoreDifferences: []
+      # - group: apps
+      #   kind: Deployment
+      #   jsonPointers:
+      #     - /spec/replicas
+    # -- Annotations (e.g., sync-wave ordering)
+    annotations: {}
+      # argocd.argoproj.io/sync-wave: "1"
+
+# -- Namespaces to create
+namespaces: []
+  # - name: my-namespace
+  #   labels:
+  #     istio-injection: enabled
+  #   annotations: {}

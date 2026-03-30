@@ -1,0 +1,173 @@
+# Multi-connector pipeline — CDC source + S3 archive + JDBC sink on one cluster
+# Usage: helm install pipeline ../kafka-connect -f multi-connector-pipeline.yaml
+
+app:
+  name: data-pipeline
+
+replicaCount: 3
+
+kafka:
+  bootstrapServers: "kafka-1:9096,kafka-2:9096,kafka-3:9096"
+  securityProtocol: SASL_SSL
+  sasl:
+    mechanism: SCRAM-SHA-512
+    credentialsSecret:
+      name: kafka-credentials
+      usernameKey: username
+      passwordKey: password
+
+# -- Install all required plugins
+plugins:
+  enabled: true
+  confluentHub:
+    - name: debezium-connector-postgresql
+      owner: debezium
+      version: "2.5.4"
+    - name: kafka-connect-s3
+      owner: confluentinc
+      version: "10.5.13"
+    - name: kafka-connect-jdbc
+      owner: confluentinc
+      version: "10.7.6"
+
+connectorDeployJob:
+  enabled: true
+  waitTimeoutSeconds: 600
+
+# -- Three connectors on the same Connect cluster
+connectors:
+  # Source: CDC from PostgreSQL
+  - name: postgres-cdc
+    config:
+      connector.class: io.debezium.connector.postgresql.PostgresConnector
+      tasks.max: "1"
+      database.hostname: "${env:PG_HOST}"
+      database.port: "5432"
+      database.user: "${env:PG_USER}"
+      database.password: "${env:PG_PASSWORD}"
+      database.dbname: "production"
+      topic.prefix: "cdc.prod"
+      plugin.name: pgoutput
+      slot.name: "debezium_slot"
+      publication.name: "debezium_pub"
+      transforms: route
+      transforms.route.type: org.apache.kafka.connect.transforms.RegexRouter
+      transforms.route.regex: "cdc\\.prod\\.public\\.(.*)"
+      transforms.route.replacement: "data.$1"
+      errors.tolerance: all
+      errors.deadletterqueue.topic.name: "data.dlq"
+
+  # Sink: Archive all CDC data to S3
+  - name: s3-archive
+    config:
+      connector.class: io.confluent.connect.s3.S3SinkConnector
+      tasks.max: "2"
+      topics.regex: "data\\..*"
+      s3.bucket.name: "my-data-lake"
+      s3.region: "us-east-1"
+      storage.class: io.confluent.connect.s3.storage.S3Storage
+      format.class: io.confluent.connect.s3.format.parquet.ParquetFormat
+      flush.size: "5000"
+      rotate.interval.ms: "300000"
+      partitioner.class: io.confluent.connect.storage.partitioner.DailyPartitioner
+      locale: "en-US"
+      timezone: "UTC"
+
+  # Sink: Replicate to analytics PostgreSQL
+  - name: jdbc-analytics-sink
+    config:
+      connector.class: io.confluent.connect.jdbc.JdbcSinkConnector
+      tasks.max: "2"
+      topics: "data.users,data.orders"
+      connection.url: "${env:ANALYTICS_JDBC_URL}"
+      connection.user: "${env:ANALYTICS_JDBC_USER}"
+      connection.password: "${env:ANALYTICS_JDBC_PASSWORD}"
+      auto.create: "true"
+      auto.evolve: "true"
+      insert.mode: upsert
+      pk.mode: record_key
+      pk.fields: id
+
+env:
+  - name: PG_HOST
+    valueFrom:
+      secretKeyRef:
+        name: source-pg-credentials
+        key: host
+  - name: PG_USER
+    valueFrom:
+      secretKeyRef:
+        name: source-pg-credentials
+        key: username
+  - name: PG_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: source-pg-credentials
+        key: password
+  - name: ANALYTICS_JDBC_URL
+    valueFrom:
+      secretKeyRef:
+        name: analytics-pg-credentials
+        key: jdbc-url
+  - name: ANALYTICS_JDBC_USER
+    valueFrom:
+      secretKeyRef:
+        name: analytics-pg-credentials
+        key: username
+  - name: ANALYTICS_JDBC_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: analytics-pg-credentials
+        key: password
+
+otelAgent:
+  enabled: true
+  endpoint: "http://otel-collector.monitoring:4317"
+  serviceName: data-pipeline
+  samplingRatio: "0.05"
+
+jmxExporter:
+  enabled: true
+  port: 9404
+
+connectorMonitor:
+  enabled: true
+  intervalSeconds: 30
+  autoRestart: true
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/data-pipeline-role
+
+resources:
+  limits:
+    cpu: "4"
+    memory: 8Gi
+  requests:
+    cpu: "1"
+    memory: 4Gi
+
+jvm:
+  heapSize: 4g
+  gcOpts: "-XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:InitiatingHeapOccupancyPercent=35"
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+
+scheduling:
+  podAntiAffinity:
+    enabled: true
+    type: required
+    topologyKey: topology.kubernetes.io/zone

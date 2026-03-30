@@ -1,0 +1,81 @@
+{{- if and .Values.connectors .Values.connectorDeployJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "kafka-connect.fullname" . }}-deploy-connectors
+  labels:
+    {{- include "kafka-connect.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        {{- include "kafka-connect.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: connector-deploy
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: deploy-connectors
+          image: {{ .Values.connectorDeployJob.image }}
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              CONNECT_URL="http://{{ include "kafka-connect.fullname" . }}:{{ .Values.service.port }}"
+              TIMEOUT={{ .Values.connectorDeployJob.waitTimeoutSeconds }}
+              BACKOFF={{ .Values.connectorDeployJob.backoffSeconds }}
+              ELAPSED=0
+
+              echo "Waiting for Kafka Connect REST API at $CONNECT_URL..."
+              until curl -sf "$CONNECT_URL/connectors" > /dev/null 2>&1; do
+                ELAPSED=$((ELAPSED + BACKOFF))
+                if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+                  echo "ERROR: Kafka Connect not ready after ${TIMEOUT}s"
+                  exit 1
+                fi
+                echo "  Not ready yet (${ELAPSED}s elapsed), retrying in ${BACKOFF}s..."
+                sleep "$BACKOFF"
+              done
+              echo "Kafka Connect is ready."
+              echo ""
+
+              {{- range .Values.connectors }}
+              echo "========================================="
+              echo "Deploying connector: {{ .name }}"
+              echo "========================================="
+
+              # Check if connector already exists
+              EXISTING=$(curl -s -o /dev/null -w "%{http_code}" "$CONNECT_URL/connectors/{{ .name }}")
+
+              if [ "$EXISTING" = "200" ]; then
+                echo "Connector {{ .name }} exists — updating config..."
+                curl -sf -X PUT \
+                  -H "Content-Type: application/json" \
+                  "$CONNECT_URL/connectors/{{ .name }}/config" \
+                  -d '{{ .config | toJson }}'
+              else
+                echo "Connector {{ .name }} not found — creating..."
+                curl -sf -X POST \
+                  -H "Content-Type: application/json" \
+                  "$CONNECT_URL/connectors" \
+                  -d '{"name": "{{ .name }}", "config": {{ .config | toJson }}}'
+              fi
+
+              echo ""
+              echo "Connector {{ .name }} deployed. Checking status..."
+              sleep 2
+              curl -sf "$CONNECT_URL/connectors/{{ .name }}/status" | head -c 500
+              echo ""
+              echo ""
+              {{- end }}
+
+              echo "========================================="
+              echo "All connectors deployed successfully."
+              echo "========================================="
+{{- end }}

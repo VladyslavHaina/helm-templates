@@ -1,0 +1,6 @@
+apiVersion: v2
+name: statefulservice
+description: Production-ready StatefulSet chart with headless Service, PVC templates, ordered startup, PDB, and observability
+version: 1.0.0
+type: application
+appVersion: "1.0.0"

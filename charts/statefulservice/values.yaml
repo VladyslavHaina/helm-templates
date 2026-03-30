@@ -1,0 +1,216 @@
+# -- Application metadata
+app:
+  name: my-stateful-service
+
+fullnameOverride: ""
+
+# -- Container image
+image:
+  repository: postgres
+  tag: "16-alpine"
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# -- StatefulSet configuration
+replicaCount: 3
+podManagementPolicy: OrderedReady  # OrderedReady or Parallel
+updateStrategy:
+  type: RollingUpdate
+  # rollingUpdate:
+  #   partition: 0
+
+# -- PVC retention policy (K8s 1.27+)
+persistentVolumeClaimRetentionPolicy:
+  whenDeleted: Retain
+  whenScaled: Retain
+
+# -- Volume claim templates
+volumeClaimTemplates:
+  - name: data
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: ""
+    size: 50Gi
+  # - name: logs
+  #   accessModes:
+  #     - ReadWriteOnce
+  #   storageClassName: ""
+  #   size: 10Gi
+
+# -- Resource limits and requests
+resources:
+  limits:
+    cpu: "2"
+    memory: 4Gi
+  requests:
+    cpu: 500m
+    memory: 2Gi
+
+# -- Headless service (required for StatefulSet)
+service:
+  # -- Headless service (clusterIP: None)
+  headless:
+    enabled: true
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+    annotations: {}
+  # -- Optional standard (ClusterIP) service for client access
+  standard:
+    enabled: false
+    type: ClusterIP
+    port: 5432
+    targetPort: 5432
+    annotations: {}
+
+# -- Pod Disruption Budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+# -- Health probes
+probes:
+  liveness:
+    enabled: true
+    tcpSocket:
+      port: 5432
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    tcpSocket:
+      port: 5432
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  startup:
+    enabled: false
+    tcpSocket:
+      port: 5432
+    initialDelaySeconds: 0
+    periodSeconds: 5
+    failureThreshold: 30
+
+# -- Container command override
+command: []
+args: []
+
+# -- Environment variables
+env: []
+envFrom: []
+
+# -- ConfigMap (created by this chart)
+configMap:
+  enabled: false
+  data: {}
+
+# -- Secrets management (cloud-agnostic CSI)
+secrets:
+  csi:
+    enabled: false
+    provider: ""
+    aws:
+      secretArn: ""
+      keys: []
+    azure:
+      keyvaultName: ""
+      tenantId: ""
+      objects: []
+    gcp:
+      projectId: ""
+      secrets: []
+    vault:
+      roleName: ""
+      secretPath: ""
+      keys: []
+    syncAsKubernetesSecret:
+      enabled: false
+      secretName: ""
+      type: Opaque
+      data: []
+  kubernetes:
+    enabled: false
+    name: ""
+    mountPath: /mnt/secrets
+    readOnly: true
+
+# -- Service Account
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: false
+
+# -- Pod scheduling
+scheduling:
+  nodeSelector: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  affinity: {}
+  podAntiAffinity:
+    enabled: true
+    type: preferred
+    topologyKey: topology.kubernetes.io/zone
+
+# -- Standard Kubernetes Ingress
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
+
+# -- Istio VirtualService
+istio:
+  enabled: false
+  virtualService:
+    hosts: []
+    gateways: []
+    http: []
+  destinationRule:
+    enabled: false
+    trafficPolicy: {}
+
+# -- Init containers
+initContainers: []
+
+# -- Sidecar containers
+extraContainers: []
+
+# -- Extra volumes (in addition to PVC templates)
+extraVolumes: []
+
+# -- Extra volume mounts
+extraVolumeMounts: []
+
+# -- Pod annotations
+podAnnotations: {}
+podLabels: {}
+
+# -- Security context
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+# -- Prometheus ServiceMonitor
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  path: /metrics
+  port: metrics
+
+# -- Network Policy
+networkPolicy:
+  enabled: false
+  ingress: []
+  egress: []

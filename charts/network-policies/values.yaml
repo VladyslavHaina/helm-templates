@@ -1,0 +1,78 @@
+nameOverride: ""
+fullnameOverride: ""
+
+# -- Default deny all ingress traffic (foundation for zero-trust)
+denyAllIngress:
+  enabled: true
+
+# -- Default deny all egress traffic
+denyAllEgress:
+  enabled: false
+
+# -- Allow same-namespace pod-to-pod traffic
+allowSameNamespace:
+  enabled: true
+
+# -- Allow traffic from monitoring namespace (Prometheus scraping)
+allowFromMonitoring:
+  enabled: true
+  namespaceLabel:
+    key: kubernetes.io/metadata.name
+    value: monitoring
+  # -- Restrict to specific ports (empty = all ports)
+  ports: []
+    # - port: 9090
+    #   protocol: TCP
+
+# -- Allow traffic from service mesh namespace (Istio, Linkerd)
+allowFromServiceMesh:
+  enabled: false
+  namespaceLabel:
+    key: kubernetes.io/metadata.name
+    value: istio-system
+
+# -- Allow DNS egress (critical for service discovery)
+allowDNS:
+  enabled: true
+  namespaceLabel:
+    key: kubernetes.io/metadata.name
+    value: kube-system
+  port: 53
+
+# -- Allow traffic from specific namespaces (list)
+allowFromNamespaces: []
+  # - name: allow-from-frontend
+  #   namespaceSelector:
+  #     matchLabels:
+  #       kubernetes.io/metadata.name: frontend
+  #   podSelector: {}
+  #   ports:
+  #     - port: 8080
+  #       protocol: TCP
+
+# -- Allow egress to specific destinations (list)
+allowEgressTo: []
+  # - name: allow-to-database
+  #   namespaceSelector:
+  #     matchLabels:
+  #       kubernetes.io/metadata.name: database
+  #   podSelector:
+  #     matchLabels:
+  #       app: postgresql
+  #   ports:
+  #     - port: 5432
+  #       protocol: TCP
+
+# -- Custom network policies (full spec passthrough)
+customPolicies: []
+  # - name: my-custom-policy
+  #   spec:
+  #     podSelector:
+  #       matchLabels:
+  #         app: my-app
+  #     ingress:
+  #       - from:
+  #           - ipBlock:
+  #               cidr: 10.0.0.0/8
+  #     policyTypes:
+  #       - Ingress

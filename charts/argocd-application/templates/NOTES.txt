@@ -1,0 +1,20 @@
+ArgoCD resources deployed:
+
+{{- if .Values.project.enabled }}
+Project: {{ .Values.project.name }}
+{{- end }}
+
+Applications:
+{{- range .Values.applications }}
+  - {{ .name }} -> {{ .destination.namespace }} ({{ .sourceType }})
+{{- end }}
+
+{{- if .Values.namespaces }}
+Namespaces:
+{{- range .Values.namespaces }}
+  - {{ .name }}
+{{- end }}
+{{- end }}
+
+Check sync status:
+  kubectl get applications -n {{ .Values.argocdNamespace }}

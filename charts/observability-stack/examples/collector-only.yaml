@@ -1,0 +1,37 @@
+# OTEL Collector forwarding to a central collector
+# Usage: helm install otel ../observability-stack -f collector-only.yaml
+
+stack:
+  name: edge-collector
+
+otelCollector:
+  enabled: true
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  exporters:
+    clickhouse:
+      enabled: false
+    otlp:
+      enabled: true
+      endpoint: "central-otel-collector.monitoring:4317"
+    logging:
+      enabled: true
+      verbosity: detailed
+  rbac:
+    enabled: false
+  podDisruptionBudget:
+    enabled: false
+
+ui:
+  type: none
+  hyperdx:
+    enabled: false
+
+mongodb:
+  enabled: false

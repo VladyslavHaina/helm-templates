@@ -1,0 +1,68 @@
+# Full security: STRICT mTLS + AuthorizationPolicies
+# Usage: helm install routing ../istio-routing -f full-security.yaml
+
+peerAuthentication:
+  enabled: true
+  mtls:
+    mode: STRICT
+
+authorizationPolicies:
+  - name: allow-frontend-to-api
+    action: ALLOW
+    rules:
+      - from:
+          - source:
+              namespaces: ["frontend"]
+        to:
+          - operation:
+              methods: ["GET", "POST", "PUT", "DELETE"]
+              paths: ["/api/*"]
+
+  - name: allow-monitoring
+    action: ALLOW
+    rules:
+      - from:
+          - source:
+              namespaces: ["monitoring"]
+        to:
+          - operation:
+              methods: ["GET"]
+              paths: ["/metrics", "/healthz"]
+
+  - name: deny-external-admin
+    action: DENY
+    rules:
+      - to:
+          - operation:
+              paths: ["/admin/*", "/internal/*"]
+
+sidecar:
+  enabled: true
+  egress:
+    - hosts:
+        - "./*"
+        - "istio-system/*"
+        - "monitoring/*"
+
+virtualServices:
+  - name: secure-api
+    hosts:
+      - "api.example.com"
+    gateways:
+      - "istio-system/wildcard-gateway"
+    http:
+      - match:
+          - uri:
+              prefix: /
+        route:
+          - destination:
+              host: api-service
+              port:
+                number: 8080
+
+destinationRules:
+  - name: api-service-dr
+    host: api-service
+    trafficPolicy:
+      tls:
+        mode: ISTIO_MUTUAL

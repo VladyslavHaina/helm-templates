@@ -1,0 +1,252 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kafka-connect.fullname" . }}
+  labels:
+    {{- include "kafka-connect.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "kafka-connect.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kafka-connect.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "kafka-connect.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.scheduling.podAntiAffinity.enabled }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    {{- include "kafka-connect.selectorLabels" . | nindent 20 }}
+                topologyKey: {{ .Values.scheduling.podAntiAffinity.topologyKey }}
+      {{- end }}
+      {{- with .Values.scheduling.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scheduling.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if or .Values.plugins.enabled .Values.otelAgent.enabled .Values.jmxExporter.enabled }}
+      initContainers:
+        {{- if .Values.plugins.enabled }}
+        - name: install-plugins
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              {{- range .Values.plugins.confluentHub }}
+              echo "Installing {{ .owner }}/{{ .name }}:{{ .version }}..."
+              confluent-hub install --no-prompt {{ .owner }}/{{ .name }}:{{ .version }} --component-dir /opt/plugins
+              {{- end }}
+              {{- range .Values.plugins.directDownload }}
+              echo "Downloading {{ .url }}..."
+              {{- if eq .type "jar" }}
+              wget -q -P /opt/plugins/ "{{ .url }}"
+              {{- else if eq .type "tgz" }}
+              wget -q -O /tmp/plugin.tar.gz "{{ .url }}" && tar -xzf /tmp/plugin.tar.gz -C /opt/plugins/ && rm /tmp/plugin.tar.gz
+              {{- else if eq .type "zip" }}
+              wget -q -O /tmp/plugin.zip "{{ .url }}" && unzip -q /tmp/plugin.zip -d /opt/plugins/ && rm /tmp/plugin.zip
+              {{- end }}
+              {{- end }}
+              echo "All plugins installed."
+          volumeMounts:
+            - name: connect-plugins
+              mountPath: /opt/plugins
+        {{- end }}
+        {{- if .Values.otelAgent.enabled }}
+        - name: download-otel-agent
+          image: {{ .Values.otelAgent.image }}
+          command:
+            - sh
+            - -c
+            - |
+              wget -q -O /agent-libs/opentelemetry-javaagent.jar \
+                "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v{{ .Values.otelAgent.version }}/opentelemetry-javaagent-{{ .Values.otelAgent.version }}.jar"
+          volumeMounts:
+            - name: agent-libs
+              mountPath: /agent-libs
+        {{- end }}
+        {{- if .Values.jmxExporter.enabled }}
+        - name: download-jmx-exporter
+          image: {{ .Values.jmxExporter.image }}
+          command:
+            - sh
+            - -c
+            - |
+              wget -q -O /agent-libs/jmx_prometheus_javaagent.jar \
+                "https://repo.maven.apache.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/{{ .Values.jmxExporter.version }}/jmx_prometheus_javaagent-{{ .Values.jmxExporter.version }}.jar"
+          volumeMounts:
+            - name: agent-libs
+              mountPath: /agent-libs
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: kafka-connect
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: rest
+              containerPort: {{ .Values.connect.restPort }}
+              protocol: TCP
+            {{- if .Values.jmxExporter.enabled }}
+            - name: jmx-metrics
+              containerPort: {{ .Values.jmxExporter.port }}
+              protocol: TCP
+            {{- end }}
+          env:
+            - name: CONNECT_BOOTSTRAP_SERVERS
+              value: {{ .Values.kafka.bootstrapServers | quote }}
+            - name: CONNECT_GROUP_ID
+              value: {{ .Values.connect.groupId | quote }}
+            - name: CONNECT_CONFIG_STORAGE_TOPIC
+              value: {{ .Values.connect.configStorageTopic | quote }}
+            - name: CONNECT_OFFSET_STORAGE_TOPIC
+              value: {{ .Values.connect.offsetStorageTopic | quote }}
+            - name: CONNECT_STATUS_STORAGE_TOPIC
+              value: {{ .Values.connect.statusStorageTopic | quote }}
+            - name: CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR
+              value: {{ .Values.connect.configStorageReplicationFactor | quote }}
+            - name: CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR
+              value: {{ .Values.connect.offsetStorageReplicationFactor | quote }}
+            - name: CONNECT_STATUS_STORAGE_REPLICATION_FACTOR
+              value: {{ .Values.connect.statusStorageReplicationFactor | quote }}
+            - name: CONNECT_KEY_CONVERTER
+              value: {{ .Values.connect.keyConverter | quote }}
+            - name: CONNECT_VALUE_CONVERTER
+              value: {{ .Values.connect.valueConverter | quote }}
+            - name: CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE
+              value: {{ .Values.connect.keyConverterSchemasEnabled | quote }}
+            - name: CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE
+              value: {{ .Values.connect.valueConverterSchemasEnabled | quote }}
+            - name: CONNECT_PLUGIN_PATH
+              value: "{{ .Values.connect.pluginPath }}{{- if .Values.plugins.enabled }},/opt/plugins{{- end }}"
+            - name: CONNECT_REST_PORT
+              value: {{ .Values.connect.restPort | quote }}
+            - name: CONNECT_REST_ADVERTISED_HOST_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            {{- if ne .Values.kafka.securityProtocol "PLAINTEXT" }}
+            - name: CONNECT_SECURITY_PROTOCOL
+              value: {{ .Values.kafka.securityProtocol | quote }}
+            {{- end }}
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xms{{ .Values.jvm.heapSize }} -Xmx{{ .Values.jvm.heapSize }}"
+            - name: KAFKA_OPTS
+              value: "{{ if .Values.jmxExporter.enabled }}-javaagent:/agent-libs/jmx_prometheus_javaagent.jar={{ .Values.jmxExporter.port }}:/etc/jmx/jmx-rules.yaml {{ end }}{{ .Values.jvm.gcOpts }} {{ .Values.jvm.opts }}"
+            {{- if .Values.otelAgent.enabled }}
+            - name: JAVA_TOOL_OPTIONS
+              value: "-javaagent:/agent-libs/opentelemetry-javaagent.jar"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.otelAgent.endpoint | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ .Values.otelAgent.serviceName | quote }}
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: {{ .Values.otelAgent.samplingRatio | quote }}
+            - name: OTEL_PROPAGATORS
+              value: {{ .Values.otelAgent.propagators | quote }}
+            {{- end }}
+            {{- range $key, $val := .Values.connect.extraConfig }}
+            - name: {{ printf "CONNECT_%s" ($key | upper | replace "." "_") }}
+              value: {{ $val | quote }}
+            {{- end }}
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.probes.liveness.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.liveness.httpGet.path }}
+              port: {{ .Values.probes.liveness.httpGet.port }}
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          {{- end }}
+          {{- if .Values.probes.readiness.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readiness.httpGet.path }}
+              port: {{ .Values.probes.readiness.httpGet.port }}
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.plugins.enabled }}
+            - name: connect-plugins
+              mountPath: /opt/plugins
+              readOnly: true
+            {{- end }}
+            {{- if or .Values.otelAgent.enabled .Values.jmxExporter.enabled }}
+            - name: agent-libs
+              mountPath: /agent-libs
+              readOnly: true
+            {{- end }}
+            {{- if .Values.jmxExporter.enabled }}
+            - name: jmx-config
+              mountPath: /etc/jmx
+              readOnly: true
+            {{- end }}
+        {{- if .Values.connectorMonitor.enabled }}
+        - name: connector-monitor
+          image: {{ .Values.connectorMonitor.image }}
+          command:
+            - sh
+            - -c
+            - |
+              while true; do
+                sleep {{ .Values.connectorMonitor.intervalSeconds }}
+                CONNECTORS=$(curl -s http://localhost:{{ .Values.connect.restPort }}/connectors 2>/dev/null)
+                if [ $? -ne 0 ]; then continue; fi
+                for CONNECTOR in $(echo "$CONNECTORS" | tr -d '[]"' | tr ',' ' '); do
+                  STATUS=$(curl -s http://localhost:{{ .Values.connect.restPort }}/connectors/$CONNECTOR/status 2>/dev/null)
+                  FAILED=$(echo "$STATUS" | grep -o '"state":"FAILED"' | wc -l)
+                  if [ "$FAILED" -gt 0 ] && [ "{{ .Values.connectorMonitor.autoRestart }}" = "true" ]; then
+                    echo "Restarting failed tasks for $CONNECTOR"
+                    TASKS=$(echo "$STATUS" | grep -o '"id":[0-9]*' | grep -o '[0-9]*')
+                    for TASK in $TASKS; do
+                      curl -s -X POST http://localhost:{{ .Values.connect.restPort }}/connectors/$CONNECTOR/tasks/$TASK/restart
+                    done
+                  fi
+                done
+              done
+        {{- end }}
+      volumes:
+        {{- if .Values.plugins.enabled }}
+        - name: connect-plugins
+          emptyDir:
+            sizeLimit: 2Gi
+        {{- end }}
+        {{- if or .Values.otelAgent.enabled .Values.jmxExporter.enabled }}
+        - name: agent-libs
+          emptyDir: {}
+        {{- end }}
+        {{- if .Values.jmxExporter.enabled }}
+        - name: jmx-config
+          configMap:
+            name: {{ include "kafka-connect.fullname" . }}-jmx
+        {{- end }}

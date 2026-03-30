@@ -1,0 +1,44 @@
+{{- if .Values.service.headless.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "statefulservice.fullname" . }}-headless
+  labels:
+    {{- include "statefulservice.labels" . | nindent 4 }}
+  {{- with .Values.service.headless.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: {{ .Values.service.headless.port }}
+      targetPort: {{ .Values.service.headless.targetPort }}
+      protocol: {{ .Values.service.headless.protocol }}
+      name: tcp
+  selector:
+    {{- include "statefulservice.selectorLabels" . | nindent 4 }}
+{{- end }}
+---
+{{- if .Values.service.standard.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "statefulservice.fullname" . }}
+  labels:
+    {{- include "statefulservice.labels" . | nindent 4 }}
+  {{- with .Values.service.standard.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.standard.type }}
+  ports:
+    - port: {{ .Values.service.standard.port }}
+      targetPort: {{ .Values.service.standard.targetPort }}
+      protocol: TCP
+      name: tcp
+  selector:
+    {{- include "statefulservice.selectorLabels" . | nindent 4 }}
+{{- end }}

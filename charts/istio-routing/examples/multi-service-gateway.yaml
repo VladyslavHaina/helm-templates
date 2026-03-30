@@ -1,0 +1,82 @@
+# Shared wildcard gateway with multiple service routes
+# Usage: helm install routing ../istio-routing -f multi-service-gateway.yaml
+
+gateway:
+  enabled: true
+  name: wildcard-gateway
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: wildcard-tls-cert
+      hosts:
+        - "*.example.com"
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      tls:
+        httpsRedirect: true
+      hosts:
+        - "*.example.com"
+
+virtualServices:
+  - name: api-routing
+    hosts:
+      - "api.example.com"
+    gateways:
+      - wildcard-gateway
+    http:
+      - match:
+          - uri:
+              prefix: /v1/users
+        route:
+          - destination:
+              host: user-service
+              port:
+                number: 8080
+      - match:
+          - uri:
+              prefix: /v1/orders
+        route:
+          - destination:
+              host: order-service
+              port:
+                number: 8080
+      - match:
+          - uri:
+              prefix: /
+        route:
+          - destination:
+              host: gateway-service
+              port:
+                number: 8080
+
+  - name: dashboard-routing
+    hosts:
+      - "dashboard.example.com"
+    gateways:
+      - wildcard-gateway
+    http:
+      - route:
+          - destination:
+              host: dashboard-frontend
+              port:
+                number: 3000
+
+  - name: grafana-routing
+    hosts:
+      - "grafana.example.com"
+    gateways:
+      - wildcard-gateway
+    http:
+      - route:
+          - destination:
+              host: grafana
+              port:
+                number: 3000

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: mongodb-operator
+description: MongoDB Community Operator chart with MongoDBCommunity CRD for replica sets, SCRAM authentication, custom roles, TLS, and monitoring
+version: 1.0.0
+type: application
+appVersion: "7.0"

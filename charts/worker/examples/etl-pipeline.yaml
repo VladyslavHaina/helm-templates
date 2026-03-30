@@ -1,0 +1,66 @@
+# ETL pipeline with init container for data download
+# Usage: helm install etl ../worker -f etl-pipeline.yaml
+
+app:
+  name: etl-pipeline
+
+type: cronjob
+
+image:
+  repository: my-registry/etl-runner
+  tag: "2.0.0"
+
+cronjob:
+  schedule: "30 4 * * *"
+  concurrencyPolicy: Replace
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 3
+  timeZone: "America/New_York"
+
+job:
+  backoffLimit: 2
+  activeDeadlineSeconds: 7200
+  restartPolicy: OnFailure
+
+command:
+  - /bin/sh
+  - -c
+args:
+  - |
+    echo "Running ETL pipeline..."
+    ./etl --source /data/input --dest /data/output
+    echo "ETL complete."
+
+initContainers:
+  - name: download-data
+    image: amazon/aws-cli:2.15
+    command:
+      - sh
+      - -c
+      - |
+        aws s3 sync s3://my-data-bucket/daily/ /data/input/
+    volumeMounts:
+      - name: data
+        mountPath: /data
+
+extraVolumes:
+  - name: data
+    emptyDir:
+      sizeLimit: 10Gi
+
+extraVolumeMounts:
+  - name: data
+    mountPath: /data
+
+resources:
+  limits:
+    cpu: "4"
+    memory: 8Gi
+  requests:
+    cpu: "2"
+    memory: 4Gi
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/etl-role

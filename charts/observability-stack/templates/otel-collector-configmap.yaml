@@ -1,0 +1,131 @@
+{{- if .Values.otelCollector.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "observability-stack.otelName" . }}-config
+  labels:
+    {{- include "observability-stack.labels" . | nindent 4 }}
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:{{ .Values.otelCollector.receivers.otlp.grpc.port }}
+          http:
+            endpoint: 0.0.0.0:{{ .Values.otelCollector.receivers.otlp.http.port }}
+      {{- if .Values.otelCollector.receivers.k8sCluster.enabled }}
+      k8s_cluster:
+        collection_interval: {{ .Values.otelCollector.receivers.k8sCluster.collectionInterval }}
+      {{- end }}
+      {{- if .Values.otelCollector.receivers.k8sObjects.enabled }}
+      k8sobjects:
+        objects:
+          {{- range .Values.otelCollector.receivers.k8sObjects.objects }}
+          - name: {{ .name }}
+            mode: {{ .mode }}
+          {{- end }}
+      {{- end }}
+    processors:
+      batch:
+        timeout: {{ .Values.otelCollector.processors.batch.timeout }}
+        send_batch_size: {{ .Values.otelCollector.processors.batch.sendBatchSize }}
+      memory_limiter:
+        limit_mib: {{ .Values.otelCollector.processors.memoryLimiter.limitMib }}
+        spike_limit_mib: {{ .Values.otelCollector.processors.memoryLimiter.spikeLimitMib }}
+        check_interval: {{ .Values.otelCollector.processors.memoryLimiter.checkInterval }}
+      {{- if .Values.otelCollector.processors.resource.enabled }}
+      resource:
+        attributes:
+          {{- range .Values.otelCollector.processors.resource.attributes }}
+          - key: {{ .key }}
+            value: {{ .value | quote }}
+            action: {{ .action }}
+          {{- end }}
+      {{- end }}
+    exporters:
+      {{- if .Values.otelCollector.exporters.clickhouse.enabled }}
+      clickhouse:
+        endpoint: {{ .Values.otelCollector.exporters.clickhouse.endpoint | quote }}
+        database: {{ .Values.otelCollector.exporters.clickhouse.database }}
+        logs_table_name: {{ .Values.otelCollector.exporters.clickhouse.logsTableName }}
+        traces_table_name: {{ .Values.otelCollector.exporters.clickhouse.tracesTableName }}
+        metrics_table_name: {{ .Values.otelCollector.exporters.clickhouse.metricsTableName }}
+        ttl: {{ .Values.otelCollector.exporters.clickhouse.ttl }}
+        {{- if .Values.otelCollector.exporters.clickhouse.passwordSecretRef.name }}
+        password: ${CLICKHOUSE_PASSWORD}
+        {{- end }}
+      {{- end }}
+      {{- if .Values.otelCollector.exporters.elasticsearch.enabled }}
+      elasticsearch:
+        endpoints:
+          {{- toYaml .Values.otelCollector.exporters.elasticsearch.endpoints | nindent 10 }}
+        index: {{ .Values.otelCollector.exporters.elasticsearch.index }}
+      {{- end }}
+      {{- if .Values.otelCollector.exporters.otlp.enabled }}
+      otlp:
+        endpoint: {{ .Values.otelCollector.exporters.otlp.endpoint | quote }}
+      {{- end }}
+      {{- if .Values.otelCollector.exporters.logging.enabled }}
+      logging:
+        verbosity: {{ .Values.otelCollector.exporters.logging.verbosity }}
+      {{- end }}
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:{{ .Values.otelCollector.extensions.healthCheck.port }}
+      {{- if .Values.otelCollector.extensions.zpages.enabled }}
+      zpages:
+        endpoint: 0.0.0.0:{{ .Values.otelCollector.extensions.zpages.port }}
+      {{- end }}
+    service:
+      extensions:
+        - health_check
+        {{- if .Values.otelCollector.extensions.zpages.enabled }}
+        - zpages
+        {{- end }}
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch{{- if .Values.otelCollector.processors.resource.enabled }}, resource{{- end }}]
+          exporters:
+            {{- if .Values.otelCollector.exporters.clickhouse.enabled }}
+            - clickhouse
+            {{- end }}
+            {{- if .Values.otelCollector.exporters.otlp.enabled }}
+            - otlp
+            {{- end }}
+            {{- if .Values.otelCollector.exporters.logging.enabled }}
+            - logging
+            {{- end }}
+        logs:
+          receivers:
+            - otlp
+            {{- if .Values.otelCollector.receivers.k8sObjects.enabled }}
+            - k8sobjects
+            {{- end }}
+          processors: [memory_limiter, batch]
+          exporters:
+            {{- if .Values.otelCollector.exporters.clickhouse.enabled }}
+            - clickhouse
+            {{- end }}
+            {{- if .Values.otelCollector.exporters.elasticsearch.enabled }}
+            - elasticsearch
+            {{- end }}
+            {{- if .Values.otelCollector.exporters.logging.enabled }}
+            - logging
+            {{- end }}
+        metrics:
+          receivers:
+            - otlp
+            {{- if .Values.otelCollector.receivers.k8sCluster.enabled }}
+            - k8s_cluster
+            {{- end }}
+          processors: [memory_limiter, batch]
+          exporters:
+            {{- if .Values.otelCollector.exporters.clickhouse.enabled }}
+            - clickhouse
+            {{- end }}
+            {{- if .Values.otelCollector.exporters.logging.enabled }}
+            - logging
+            {{- end }}
+{{- end }}

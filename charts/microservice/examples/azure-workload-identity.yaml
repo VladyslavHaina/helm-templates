@@ -1,0 +1,58 @@
+# Azure AKS with Workload Identity and Azure Key Vault CSI
+# Usage: helm install my-api ../microservice -f azure-workload-identity.yaml
+
+app:
+  name: order-service
+
+image:
+  repository: myregistry.azurecr.io/order-service
+  tag: "2.0.0"
+
+replicaCount: 3
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+serviceAccount:
+  create: true
+  annotations:
+    azure.workload.identity/client-id: "00000000-0000-0000-0000-000000000000"
+
+secrets:
+  csi:
+    enabled: true
+    provider: azure
+    azure:
+      keyvaultName: my-app-keyvault
+      tenantId: "00000000-0000-0000-0000-000000000000"
+      objects:
+        - objectName: db-connection-string
+          objectType: secret
+        - objectName: redis-password
+          objectType: secret
+        - objectName: app-signing-key
+          objectType: key
+
+ingress:
+  enabled: true
+  className: azure-application-gateway
+  annotations:
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: orders.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: orders-tls
+      hosts:
+        - orders.example.com
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2

@@ -1,0 +1,28 @@
+# Minimal: OTEL Collector → ClickHouse (no UI)
+# Usage: helm install otel ../observability-stack -f clickhouse-minimal.yaml
+
+stack:
+  name: otel-pipeline
+
+otelCollector:
+  enabled: true
+  replicas: 2
+  exporters:
+    clickhouse:
+      enabled: true
+      endpoint: "tcp://clickhouse:9000"
+      database: otel
+      ttl: "72h"
+      passwordSecretRef:
+        name: clickhouse-credentials
+        key: password
+  rbac:
+    enabled: true
+
+ui:
+  type: none
+  hyperdx:
+    enabled: false
+
+mongodb:
+  enabled: false

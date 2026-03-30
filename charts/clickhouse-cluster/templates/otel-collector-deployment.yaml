@@ -1,0 +1,68 @@
+{{- if .Values.otelCollector.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "clickhouse-cluster.otelName" . }}
+  labels:
+    {{- include "clickhouse-cluster.labels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  replicas: {{ .Values.otelCollector.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "clickhouse-cluster.otelName" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "clickhouse-cluster.otelName" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/otel-collector-configmap.yaml") . | sha256sum }}
+    spec:
+      {{- if .Values.otelCollector.rbac.enabled }}
+      serviceAccountName: {{ include "clickhouse-cluster.otelName" . }}
+      {{- end }}
+      containers:
+        - name: otel-collector
+          image: {{ .Values.otelCollector.image }}
+          args:
+            - --config=/conf/otel-collector-config.yaml
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.otelCollector.ports.grpc }}
+            - name: http
+              containerPort: {{ .Values.otelCollector.ports.http }}
+            - name: health
+              containerPort: {{ .Values.otelCollector.ports.health }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.otelCollector.resources | nindent 12 }}
+          {{- if .Values.otelCollector.exporter.passwordSecretRef.name }}
+          env:
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.otelCollector.exporter.passwordSecretRef.name }}
+                  key: {{ .Values.otelCollector.exporter.passwordSecretRef.key }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /conf
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "clickhouse-cluster.otelName" . }}-config
+{{- end }}

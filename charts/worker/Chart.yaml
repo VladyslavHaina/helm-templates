@@ -1,0 +1,6 @@
+apiVersion: v2
+name: worker
+description: Production-ready Job and CronJob chart for batch processing, migrations, and scheduled tasks
+version: 1.0.0
+type: application
+appVersion: "1.0.0"

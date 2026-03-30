@@ -1,0 +1,24 @@
+{{- if .Values.otelCollector.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "clickhouse-cluster.otelName" . }}
+  labels:
+    {{- include "clickhouse-cluster.labels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  type: ClusterIP
+  ports:
+    - name: grpc
+      port: {{ .Values.otelCollector.ports.grpc }}
+      targetPort: grpc
+    - name: http
+      port: {{ .Values.otelCollector.ports.http }}
+      targetPort: http
+    - name: health
+      port: {{ .Values.otelCollector.ports.health }}
+      targetPort: health
+  selector:
+    app.kubernetes.io/name: {{ include "clickhouse-cluster.otelName" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

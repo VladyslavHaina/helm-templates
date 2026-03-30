@@ -1,0 +1,117 @@
+# -- Cluster metadata
+cluster:
+  name: my-flink
+
+fullnameOverride: ""
+
+# -- Deployment mode: "session" or "application"
+mode: session
+
+# -- Flink image
+image:
+  repository: flink
+  tag: "1.19"
+  pullPolicy: IfNotPresent
+
+# -- Flink version (for operator compatibility)
+flinkVersion: v1_19
+
+# -- Service Account
+serviceAccount:
+  create: true
+  name: flink
+  annotations: {}
+
+# -- Job Manager
+jobManager:
+  replicas: 1
+  resources:
+    limits:
+      cpu: "1"
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  podTemplate: {}
+
+# -- Task Manager
+taskManager:
+  replicas: 2
+  resources:
+    limits:
+      cpu: "2"
+      memory: 4Gi
+    requests:
+      cpu: "1"
+      memory: 2Gi
+  taskSlots: 2
+  podTemplate: {}
+
+# -- Flink configuration (flink-conf.yaml entries)
+flinkConfiguration:
+  taskmanager.numberOfTaskSlots: "2"
+  state.backend: hashmap
+  state.checkpoints.dir: ""
+  state.savepoints.dir: ""
+  execution.checkpointing.interval: "60000"
+  execution.checkpointing.min-pause: "30000"
+  execution.checkpointing.timeout: "600000"
+  execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+  web.cancel.enable: "true"
+  # high-availability.type: kubernetes
+  # high-availability.storageDir: s3://my-bucket/ha
+
+# -- Session Jobs (when mode: session)
+sessionJobs: []
+  # - name: my-job
+  #   jarURI: "s3://my-bucket/jobs/my-job-1.0.0.jar"
+  #   parallelism: 2
+  #   entryClass: com.example.MyJob
+  #   args: []
+  #   upgradeMode: last-state  # stateless, savepoint, last-state
+  #   allowNonRestoredState: false
+  #   savepointTriggerNonce: 0
+
+# -- Application mode job (when mode: application)
+applicationJob:
+  jarURI: ""
+  entryClass: ""
+  parallelism: 1
+  args: []
+  upgradeMode: last-state
+  allowNonRestoredState: false
+
+# -- Shared pod template
+podTemplate:
+  annotations: {}
+  labels: {}
+
+# -- Ingress for Flink Web UI
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: ""
+  tls: []
+
+# -- Istio VirtualService (optional)
+istio:
+  enabled: false
+  virtualService:
+    hosts: []
+    gateways: []
+
+# -- Logging
+logging:
+  log4jConsolePattern: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n"
+  rootLoggerLevel: INFO
+  extraLoggers: {}
+    # com.example: DEBUG
+
+# -- Environment variables
+env: []
+envFrom: []
+
+# -- Extra volumes
+extraVolumes: []
+extraVolumeMounts: []

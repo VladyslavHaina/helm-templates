@@ -1,0 +1,64 @@
+# Multi-source: external Helm chart + custom values from Git
+# Usage: helm install my-apps ../argocd-application -f multi-source.yaml
+
+project:
+  enabled: true
+  name: infra-project
+  destinations:
+    - namespace: "*"
+      server: "https://kubernetes.default.svc"
+  sourceRepos:
+    - "*"
+
+applications:
+  - name: cert-manager
+    sourceType: multi
+    project: infra-project
+    destination:
+      namespace: cert-manager
+      server: "https://kubernetes.default.svc"
+    sources:
+      - repoURL: "https://charts.jetstack.io"
+        chart: cert-manager
+        targetRevision: "v1.14.0"
+        helm:
+          releaseName: cert-manager
+          valueFiles:
+            - $values/infra/cert-manager/values-prod.yaml
+      - repoURL: "https://github.com/my-org/infra-values.git"
+        targetRevision: main
+        ref: values
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+    ignoreDifferences:
+      - group: admissionregistration.k8s.io
+        kind: ValidatingWebhookConfiguration
+        jsonPointers:
+          - /webhooks/0/failurePolicy
+
+  - name: ingress-nginx
+    sourceType: multi
+    project: infra-project
+    destination:
+      namespace: ingress-nginx
+      server: "https://kubernetes.default.svc"
+    sources:
+      - repoURL: "https://kubernetes.github.io/ingress-nginx"
+        chart: ingress-nginx
+        targetRevision: "4.10.0"
+        helm:
+          releaseName: ingress-nginx
+          valueFiles:
+            - $values/infra/ingress-nginx/values-prod.yaml
+      - repoURL: "https://github.com/my-org/infra-values.git"
+        targetRevision: main
+        ref: values
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true

@@ -1,0 +1,60 @@
+# MongoDB with custom CDC role for Debezium Change Streams
+# Usage: helm install mongodb ../mongodb-operator -f with-cdc-role.yaml
+
+cluster:
+  name: cdc-mongodb
+
+replicaSet:
+  members: 3
+
+storage:
+  data:
+    size: 100Gi
+
+auth:
+  adminUser:
+    name: admin
+    passwordSecretRef:
+      name: mongodb-admin-password
+      key: password
+
+users:
+  - name: app-user
+    database: admin
+    passwordSecretRef:
+      name: mongodb-app-password
+      key: password
+    roles:
+      - name: readWrite
+        db: myapp
+  - name: cdc-user
+    database: admin
+    passwordSecretRef:
+      name: mongodb-cdc-password
+      key: password
+    roles:
+      - name: cdc-role
+        db: admin
+
+customRoles:
+  - name: cdc-role
+    db: admin
+    privileges:
+      - resource:
+          db: ""
+          collection: ""
+        actions:
+          - changeStream
+          - find
+      - resource:
+          db: ""
+          collection: ""
+        actions:
+          - listDatabases
+          - listCollections
+      - resource:
+          db: "local"
+          collection: "oplog.rs"
+        actions:
+          - find
+    roles: []

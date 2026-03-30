@@ -1,0 +1,76 @@
+# Full stack: OTEL Collector → ClickHouse → HyperDX + MongoDB
+# Usage: helm install observability ../observability-stack -f clickhouse-hyperdx.yaml
+
+stack:
+  name: observability
+
+otelCollector:
+  enabled: true
+  replicas: 3
+  resources:
+    limits:
+      cpu: "2"
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  receivers:
+    otlp:
+      grpc:
+        port: 4317
+      http:
+        port: 4318
+    k8sCluster:
+      enabled: true
+      collectionInterval: 30s
+    k8sObjects:
+      enabled: true
+      objects:
+        - name: events
+          mode: watch
+  processors:
+    resource:
+      enabled: true
+      attributes:
+        - key: cluster.name
+          value: production
+          action: upsert
+  exporters:
+    clickhouse:
+      enabled: true
+      endpoint: "tcp://clickhouse.analytics:9000"
+      database: otel
+      ttl: "168h"
+      passwordSecretRef:
+        name: clickhouse-otel-credentials
+        key: password
+  rbac:
+    enabled: true
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+  serviceMonitor:
+    enabled: true
+
+ui:
+  type: hyperdx
+  hyperdx:
+    enabled: true
+    replicas: 2
+    appUrl: "https://observability.example.com"
+    frontendUrl: "https://observability.example.com"
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+
+mongodb:
+  enabled: true
+  storage:
+    size: 20Gi
+  resources:
+    limits:
+      cpu: "1"
+      memory: 2Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi

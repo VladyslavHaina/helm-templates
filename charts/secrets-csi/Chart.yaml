@@ -1,0 +1,6 @@
+apiVersion: v2
+name: secrets-csi
+description: Cloud-agnostic Secrets Store CSI Driver chart supporting AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, and HashiCorp Vault
+version: 1.0.0
+type: application
+appVersion: "1.0.0"

@@ -1,0 +1,31 @@
+# Azure Key Vault with Workload Identity
+# Usage: helm install secrets ../secrets-csi -f azure-key-vault.yaml
+
+provider: azure
+
+serviceAccount:
+  create: true
+  name: my-app-sa
+  annotations:
+    azure.workload.identity/client-id: "00000000-0000-0000-0000-000000000000"
+
+azure:
+  keyvaultName: my-app-keyvault
+  tenantId: "00000000-0000-0000-0000-000000000000"
+  secrets:
+    - name: db-connection
+      objectName: database-connection-string
+      objectType: secret
+    - name: signing-key
+      objectName: app-signing-key
+      objectType: key
+    - name: tls-cert
+      objectName: app-tls-certificate
+      objectType: cert
+  syncAsKubernetesSecret:
+    enabled: true
+    secretName: my-app-secrets
+    type: Opaque
+    data:
+      - objectName: database-connection-string
+        key: connection-string

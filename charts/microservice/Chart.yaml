@@ -1,0 +1,6 @@
+apiVersion: v2
+name: microservice
+description: Production-ready microservice chart with Deployment, Service, HPA, PDB, Ingress, optional Istio VirtualService, secrets management, and observability
+version: 1.0.0
+type: application
+appVersion: "1.0.0"

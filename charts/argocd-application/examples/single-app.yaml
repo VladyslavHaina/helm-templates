@@ -1,0 +1,41 @@
+# Simple single Helm application
+# Usage: helm install my-apps ../argocd-application -f single-app.yaml
+
+project:
+  enabled: true
+  name: my-project
+  description: "Production project"
+  destinations:
+    - namespace: "my-app"
+      server: "https://kubernetes.default.svc"
+  sourceRepos:
+    - "https://github.com/my-org/*"
+
+applications:
+  - name: my-api
+    sourceType: helm
+    project: my-project
+    destination:
+      namespace: my-app
+      server: "https://kubernetes.default.svc"
+    source:
+      repoURL: "https://github.com/my-org/my-app-manifests.git"
+      targetRevision: HEAD
+      path: "charts/my-api"
+      helm:
+        releaseName: my-api
+        valueFiles:
+          - values.yaml
+          - values-prod.yaml
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+
+namespaces:
+  - name: my-app
+    labels:
+      istio-injection: enabled
+      team: backend

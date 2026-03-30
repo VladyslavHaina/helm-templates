@@ -1,0 +1,21 @@
+Secrets CSI resources deployed:
+
+Provider: {{ .Values.provider }}
+SecretProviderClass: {{ include "secrets-csi.fullname" . }}
+{{- if .Values.serviceAccount.create }}
+ServiceAccount: {{ include "secrets-csi.serviceAccountName" . }}
+{{- end }}
+
+Mount in your pod spec:
+  volumes:
+    - name: secrets-store
+      csi:
+        driver: secrets-store.csi.k8s.io
+        readOnly: true
+        volumeAttributes:
+          secretProviderClass: {{ include "secrets-csi.fullname" . }}
+  containers:
+    - volumeMounts:
+        - name: secrets-store
+          mountPath: {{ .Values.volumeMount.mountPath }}
+          readOnly: true

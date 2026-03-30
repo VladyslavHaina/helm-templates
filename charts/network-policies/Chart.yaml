@@ -1,0 +1,6 @@
+apiVersion: v2
+name: network-policies
+description: Kubernetes NetworkPolicy chart with default-deny baseline and configurable allow rules for monitoring, service mesh, DNS, and cross-namespace traffic
+version: 1.0.0
+type: application
+appVersion: "1.0.0"

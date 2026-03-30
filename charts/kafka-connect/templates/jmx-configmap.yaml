@@ -1,0 +1,24 @@
+{{- if .Values.jmxExporter.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kafka-connect.fullname" . }}-jmx
+  labels:
+    {{- include "kafka-connect.labels" . | nindent 4 }}
+data:
+  jmx-rules.yaml: |
+    lowercaseOutputName: true
+    lowercaseOutputLabelNames: true
+    rules:
+      {{- range .Values.jmxExporter.rules }}
+      - pattern: {{ .pattern | quote }}
+        name: {{ .name | quote }}
+        type: {{ .type }}
+        {{- if .labels }}
+        labels:
+          {{- range $k, $v := .labels }}
+          {{ $k }}: {{ $v | quote }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+{{- end }}

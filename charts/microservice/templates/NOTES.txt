@@ -1,0 +1,25 @@
+{{ include "microservice.fullname" . }} has been deployed.
+
+{{- if .Values.service.enabled }}
+Service: {{ include "microservice.fullname" . }}:{{ .Values.service.port }}
+{{- end }}
+
+{{- if .Values.ingress.enabled }}
+Ingress:
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.istio.enabled }}
+Istio VirtualService:
+{{- range .Values.istio.virtualService.hosts }}
+  https://{{ . }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.autoscaling.enabled }}
+Autoscaling: {{ .Values.autoscaling.minReplicas }}-{{ .Values.autoscaling.maxReplicas }} replicas
+{{- else }}
+Replicas: {{ .Values.replicaCount }}
+{{- end }}

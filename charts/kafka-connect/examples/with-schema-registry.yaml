@@ -1,0 +1,32 @@
+# Kafka Connect with Avro and Schema Registry
+# Usage: helm install connect ../kafka-connect -f with-schema-registry.yaml
+
+app:
+  name: avro-connect
+
+replicaCount: 2
+
+kafka:
+  bootstrapServers: "kafka-bootstrap:9092"
+
+schemaRegistry:
+  enabled: true
+  url: "http://schema-registry:8081"
+
+connect:
+  groupId: avro-connect
+  keyConverter: io.confluent.connect.avro.AvroConverter
+  valueConverter: io.confluent.connect.avro.AvroConverter
+  keyConverterSchemasEnabled: true
+  valueConverterSchemasEnabled: true
+  extraConfig:
+    key.converter.schema.registry.url: "http://schema-registry:8081"
+    value.converter.schema.registry.url: "http://schema-registry:8081"
+
+resources:
+  limits:
+    cpu: "2"
+    memory: 4Gi
+  requests:
+    cpu: 500m
+    memory: 2Gi

@@ -1,0 +1,70 @@
+{{- if .Values.otelCollector.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "observability-stack.otelName" . }}
+  labels:
+    {{- include "observability-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  replicas: {{ .Values.otelCollector.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "observability-stack.otelName" . }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "observability-stack.otelName" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/otel-collector-configmap.yaml") . | sha256sum }}
+    spec:
+      {{- if .Values.otelCollector.rbac.enabled }}
+      serviceAccountName: {{ include "observability-stack.otelName" . }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: otel-collector
+          image: {{ .Values.otelCollector.image }}
+          args: ["--config=/conf/otel-collector-config.yaml"]
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.otelCollector.ports.grpc }}
+            - name: http
+              containerPort: {{ .Values.otelCollector.ports.http }}
+            - name: health
+              containerPort: {{ .Values.otelCollector.ports.health }}
+            - name: metrics
+              containerPort: {{ .Values.otelCollector.ports.metrics }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.otelCollector.resources | nindent 12 }}
+          env:
+            {{- if and .Values.otelCollector.exporters.clickhouse.enabled .Values.otelCollector.exporters.clickhouse.passwordSecretRef.name }}
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.otelCollector.exporters.clickhouse.passwordSecretRef.name }}
+                  key: {{ .Values.otelCollector.exporters.clickhouse.passwordSecretRef.key }}
+            {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /conf
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "observability-stack.otelName" . }}-config
+{{- end }}

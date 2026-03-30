@@ -1,0 +1,54 @@
+{{- if .Values.otelCollector.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "clickhouse-cluster.otelName" . }}-config
+  labels:
+    {{- include "clickhouse-cluster.labels" . | nindent 4 }}
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:{{ .Values.otelCollector.receivers.otlp.grpc.port }}
+          http:
+            endpoint: 0.0.0.0:{{ .Values.otelCollector.receivers.otlp.http.port }}
+    processors:
+      batch:
+        timeout: {{ .Values.otelCollector.processors.batch.timeout }}
+        send_batch_size: {{ .Values.otelCollector.processors.batch.sendBatchSize }}
+      memory_limiter:
+        limit_mib: {{ .Values.otelCollector.processors.memoryLimiter.limitMib }}
+        spike_limit_mib: {{ .Values.otelCollector.processors.memoryLimiter.spikeLimitMib }}
+        check_interval: {{ .Values.otelCollector.processors.memoryLimiter.checkInterval }}
+    exporters:
+      clickhouse:
+        endpoint: {{ .Values.otelCollector.exporter.endpoint | default (printf "tcp://%s.%s.svc.cluster.local:%d" (include "clickhouse-cluster.fullname" .) .Release.Namespace (int .Values.clickhouse.ports.native)) }}
+        database: {{ .Values.otelCollector.exporter.database }}
+        logs_table_name: {{ .Values.otelCollector.exporter.logsTableName }}
+        traces_table_name: {{ .Values.otelCollector.exporter.tracesTableName }}
+        metrics_table_name: {{ .Values.otelCollector.exporter.metricsTableName }}
+        ttl: {{ .Values.otelCollector.exporter.ttl }}
+        {{- if .Values.otelCollector.exporter.passwordSecretRef.name }}
+        password: ${CLICKHOUSE_PASSWORD}
+        {{- end }}
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:{{ .Values.otelCollector.extensions.healthCheck.port }}
+    service:
+      extensions: [health_check]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [clickhouse]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [clickhouse]
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [clickhouse]
+{{- end }}

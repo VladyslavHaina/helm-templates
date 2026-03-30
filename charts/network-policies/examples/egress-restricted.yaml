@@ -1,0 +1,57 @@
+# Egress-restricted environment — only allow specific destinations
+# Usage: helm install netpol ../network-policies -f egress-restricted.yaml
+
+denyAllIngress:
+  enabled: true
+
+denyAllEgress:
+  enabled: true
+
+allowSameNamespace:
+  enabled: true
+
+allowDNS:
+  enabled: true
+
+allowEgressTo:
+  - name: allow-to-database
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: database
+    podSelector:
+      matchLabels:
+        app: postgresql
+    ports:
+      - port: 5432
+        protocol: TCP
+
+  - name: allow-to-redis
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: cache
+    podSelector:
+      matchLabels:
+        app: redis
+    ports:
+      - port: 6379
+        protocol: TCP
+
+  - name: allow-to-kafka
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: streaming
+    ports:
+      - port: 9092
+        protocol: TCP
+
+customPolicies:
+  - name: allow-https-egress
+    spec:
+      podSelector: {}
+      egress:
+        - to: []
+          ports:
+            - port: 443
+              protocol: TCP
+      policyTypes:
+        - Egress

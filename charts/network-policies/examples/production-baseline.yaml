@@ -1,0 +1,35 @@
+# Full production baseline — deny all + selective allows
+# Usage: helm install netpol ../network-policies -f production-baseline.yaml
+
+denyAllIngress:
+  enabled: true
+
+denyAllEgress:
+  enabled: true
+
+allowSameNamespace:
+  enabled: true
+
+allowFromMonitoring:
+  enabled: true
+  namespaceLabel:
+    key: kubernetes.io/metadata.name
+    value: monitoring
+  ports:
+    - port: 9090
+      protocol: TCP
+    - port: 8080
+      protocol: TCP
+
+allowFromServiceMesh:
+  enabled: true
+  namespaceLabel:
+    key: kubernetes.io/metadata.name
+    value: istio-system
+
+allowDNS:
+  enabled: true
+  namespaceLabel:
+    key: kubernetes.io/metadata.name
+    value: kube-system
+  port: 53

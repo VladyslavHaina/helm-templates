@@ -1,0 +1,45 @@
+# Canary deployment with 90/10 traffic split
+# Usage: helm install routing ../istio-routing -f canary-deployment.yaml
+
+virtualServices:
+  - name: my-app-canary
+    hosts:
+      - "app.example.com"
+    gateways:
+      - "istio-system/wildcard-gateway"
+    http:
+      - route:
+          - destination:
+              host: my-app
+              port:
+                number: 8080
+              subset: stable
+            weight: 90
+          - destination:
+              host: my-app
+              port:
+                number: 8080
+              subset: canary
+            weight: 10
+
+destinationRules:
+  - name: my-app-dr
+    host: my-app
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 100
+        http:
+          http2MaxRequests: 1000
+      outlierDetection:
+        consecutive5xxErrors: 3
+        interval: 30s
+        baseEjectionTime: 30s
+        maxEjectionPercent: 30
+    subsets:
+      - name: stable
+        labels:
+          version: v1
+      - name: canary
+        labels:
+          version: v2

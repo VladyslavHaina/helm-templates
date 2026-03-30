@@ -1,0 +1,21 @@
+Kafka Connect deployed:
+
+Service: {{ include "kafka-connect.fullname" . }}:{{ .Values.service.port }}
+REST API: http://{{ include "kafka-connect.fullname" . }}.{{ .Release.Namespace }}:{{ .Values.service.port }}
+
+{{- if .Values.otelAgent.enabled }}
+OTEL Agent: Enabled (endpoint: {{ .Values.otelAgent.endpoint }})
+{{- end }}
+{{- if .Values.jmxExporter.enabled }}
+JMX Metrics: port {{ .Values.jmxExporter.port }}
+{{- end }}
+{{- if .Values.connectorMonitor.enabled }}
+Connector Monitor: Enabled (interval: {{ .Values.connectorMonitor.intervalSeconds }}s, auto-restart: {{ .Values.connectorMonitor.autoRestart }})
+{{- end }}
+
+List connectors:
+  kubectl exec -it deploy/{{ include "kafka-connect.fullname" . }} -n {{ .Release.Namespace }} -- \
+    curl -s http://localhost:{{ .Values.connect.restPort }}/connectors | jq .
+
+Check connector status:
+  curl http://{{ include "kafka-connect.fullname" . }}.{{ .Release.Namespace }}:{{ .Values.service.port }}/connectors/<name>/status

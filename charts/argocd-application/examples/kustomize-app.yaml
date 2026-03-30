@@ -1,0 +1,34 @@
+# Kustomize-based application
+# Usage: helm install my-apps ../argocd-application -f kustomize-app.yaml
+
+project:
+  enabled: true
+  name: kustomize-project
+  destinations:
+    - namespace: "*"
+      server: "https://kubernetes.default.svc"
+  sourceRepos:
+    - "https://github.com/my-org/*"
+
+applications:
+  - name: frontend-app
+    sourceType: kustomize
+    project: kustomize-project
+    destination:
+      namespace: frontend
+      server: "https://kubernetes.default.svc"
+    source:
+      repoURL: "https://github.com/my-org/frontend.git"
+      targetRevision: HEAD
+      path: "deploy/overlays/production"
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+    ignoreDifferences:
+      - group: apps
+        kind: Deployment
+        jsonPointers:
+          - /spec/replicas

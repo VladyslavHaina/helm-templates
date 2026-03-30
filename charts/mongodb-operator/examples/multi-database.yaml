@@ -1,0 +1,65 @@
+# Per-service database isolation pattern
+# Usage: helm install mongodb ../mongodb-operator -f multi-database.yaml
+
+cluster:
+  name: shared-mongodb
+
+replicaSet:
+  members: 3
+
+storage:
+  data:
+    size: 50Gi
+  logs:
+    size: 10Gi
+
+auth:
+  adminUser:
+    name: admin
+    passwordSecretRef:
+      name: mongodb-admin-password
+      key: password
+
+# Isolated databases per service
+databases:
+  - name: user-service-db
+    members: 3
+    storage:
+      data:
+        size: 30Gi
+    users:
+      - name: user-svc
+        passwordSecretRef:
+          name: user-svc-db-password
+          key: password
+        roles:
+          - name: readWrite
+            db: user-service-db
+
+  - name: order-service-db
+    members: 3
+    storage:
+      data:
+        size: 50Gi
+    users:
+      - name: order-svc
+        passwordSecretRef:
+          name: order-svc-db-password
+          key: password
+        roles:
+          - name: readWrite
+            db: order-service-db
+
+  - name: notification-service-db
+    members: 1
+    storage:
+      data:
+        size: 10Gi
+    users:
+      - name: notif-svc
+        passwordSecretRef:
+          name: notif-svc-db-password
+          key: password
+        roles:
+          - name: readWrite
+            db: notification-service-db

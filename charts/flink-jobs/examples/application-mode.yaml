@@ -1,0 +1,52 @@
+# Application mode — dedicated cluster for one job
+# Usage: helm install etl-job ../flink-jobs -f application-mode.yaml
+
+cluster:
+  name: etl-processor
+
+mode: application
+
+image:
+  repository: my-registry/etl-processor
+  tag: "2.0.0"
+
+flinkVersion: v1_19
+
+jobManager:
+  replicas: 1
+  resources:
+    limits:
+      cpu: "1"
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+taskManager:
+  replicas: 3
+  resources:
+    limits:
+      cpu: "4"
+      memory: 8Gi
+    requests:
+      cpu: "2"
+      memory: 4Gi
+
+applicationJob:
+  jarURI: "local:///opt/flink/usrlib/etl-processor.jar"
+  entryClass: com.example.ETLProcessor
+  parallelism: 6
+  upgradeMode: last-state
+  allowNonRestoredState: false
+
+flinkConfiguration:
+  taskmanager.numberOfTaskSlots: "2"
+  state.backend: rocksdb
+  state.checkpoints.dir: "s3://my-bucket/checkpoints/etl"
+  execution.checkpointing.interval: "120000"
+
+env:
+  - name: KAFKA_BOOTSTRAP
+    value: "kafka:9092"
+  - name: OUTPUT_TOPIC
+    value: "processed-events"

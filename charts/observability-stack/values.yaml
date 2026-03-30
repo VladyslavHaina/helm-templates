@@ -1,0 +1,171 @@
+# -- Stack metadata
+stack:
+  name: observability
+
+fullnameOverride: ""
+
+# -- OpenTelemetry Collector
+otelCollector:
+  enabled: true
+  image: otel/opentelemetry-collector-contrib:0.100.0
+  replicas: 2
+  resources:
+    limits:
+      cpu: "1"
+      memory: 2Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+  # -- Receivers
+  receivers:
+    otlp:
+      grpc:
+        port: 4317
+      http:
+        port: 4318
+    k8sCluster:
+      enabled: false
+      collectionInterval: 30s
+    k8sObjects:
+      enabled: false
+      objects:
+        - name: events
+          mode: watch
+  # -- Processors
+  processors:
+    batch:
+      timeout: 5s
+      sendBatchSize: 10000
+    memoryLimiter:
+      limitMib: 1500
+      spikeLimitMib: 512
+      checkInterval: 5s
+    resource:
+      enabled: false
+      attributes: []
+        # - key: cluster.name
+        #   value: my-cluster
+        #   action: upsert
+  # -- Exporters (select your backend)
+  exporters:
+    clickhouse:
+      enabled: true
+      endpoint: ""
+      database: otel
+      logsTableName: otel_logs
+      tracesTableName: otel_traces
+      metricsTableName: otel_metrics
+      ttl: "72h"
+      passwordSecretRef:
+        name: ""
+        key: ""
+    elasticsearch:
+      enabled: false
+      endpoints: []
+      index: otel
+    otlp:
+      enabled: false
+      endpoint: ""
+    logging:
+      enabled: false
+      verbosity: detailed
+  # -- Extensions
+  extensions:
+    healthCheck:
+      port: 13133
+    zpages:
+      enabled: false
+      port: 55679
+  # -- Ports
+  ports:
+    grpc: 4317
+    http: 4318
+    health: 13133
+    metrics: 8888
+  # -- RBAC for K8s metadata enrichment
+  rbac:
+    enabled: true
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+# -- UI Dashboard
+ui:
+  type: hyperdx  # hyperdx, grafana, or none
+  hyperdx:
+    enabled: true
+    image: hyperdx/hyperdx:latest
+    replicas: 2
+    resources:
+      limits:
+        cpu: "1"
+        memory: 2Gi
+      requests:
+        cpu: 200m
+        memory: 512Mi
+    service:
+      port: 8080
+    apiKey: ""
+    appUrl: ""
+    frontendUrl: ""
+    probes:
+      liveness:
+        path: /health
+        port: 8080
+      readiness:
+        path: /health
+        port: 8080
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+  grafana:
+    enabled: false
+
+# -- MongoDB (metadata store for HyperDX)
+mongodb:
+  enabled: false
+  image: mongo:7.0
+  port: 27017
+  storage:
+    size: 20Gi
+    storageClass: ""
+  resources:
+    limits:
+      cpu: "1"
+      memory: 2Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+
+# -- Ingress
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
+
+# -- Istio
+istio:
+  enabled: false
+  virtualService:
+    hosts: []
+    gateways: []
+
+# -- Scheduling
+scheduling:
+  nodeSelector: {}
+  tolerations: []
+
+# -- Security
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Network Policy
+networkPolicy:
+  enabled: false
