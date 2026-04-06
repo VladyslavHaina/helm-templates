@@ -131,7 +131,7 @@ spec:
             {{- end }}
           env:
             - name: CONNECT_BOOTSTRAP_SERVERS
-              value: {{ .Values.kafka.bootstrapServers | quote }}
+              value: {{ required "kafka.bootstrapServers is required" .Values.kafka.bootstrapServers | quote }}
             - name: CONNECT_GROUP_ID
               value: {{ .Values.connect.groupId | quote }}
             - name: CONNECT_CONFIG_STORAGE_TOPIC

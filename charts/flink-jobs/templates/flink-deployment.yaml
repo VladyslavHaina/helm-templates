@@ -37,7 +37,7 @@ spec:
     {{- end }}
   {{- if eq .Values.mode "application" }}
   job:
-    jarURI: {{ .Values.applicationJob.jarURI | quote }}
+    jarURI: {{ required "applicationJob.jarURI is required when mode=application" .Values.applicationJob.jarURI | quote }}
     {{- if .Values.applicationJob.entryClass }}
     entryClass: {{ .Values.applicationJob.entryClass | quote }}
     {{- end }}
