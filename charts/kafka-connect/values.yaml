@@ -26,8 +26,9 @@ resources:
 # -- Kafka cluster configuration
 kafka:
   bootstrapServers: "kafka-bootstrap:9092"
-  # -- Security protocol: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL
-  securityProtocol: PLAINTEXT
+  # -- Security protocol: SASL_SSL (recommended), SSL, SASL_PLAINTEXT, PLAINTEXT
+  # WARNING: PLAINTEXT transmits data unencrypted — use only for local development
+  securityProtocol: SASL_SSL
   sasl:
     mechanism: SCRAM-SHA-512
     jaasConfig: ""

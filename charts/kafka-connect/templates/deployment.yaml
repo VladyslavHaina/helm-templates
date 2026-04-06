@@ -142,9 +142,21 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-            {{- if ne .Values.kafka.securityProtocol "PLAINTEXT" }}
             - name: CONNECT_SECURITY_PROTOCOL
               value: {{ .Values.kafka.securityProtocol | quote }}
+            {{- if or (eq .Values.kafka.securityProtocol "SASL_SSL") (eq .Values.kafka.securityProtocol "SASL_PLAINTEXT") }}
+            - name: CONNECT_SASL_MECHANISM
+              value: {{ .Values.kafka.sasl.mechanism | quote }}
+            {{- if .Values.kafka.sasl.credentialsSecret.name }}
+            - name: CONNECT_SASL_JAAS_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.kafka.sasl.credentialsSecret.name }}
+                  key: {{ .Values.kafka.sasl.credentialsSecret.passwordKey }}
+            {{- else if .Values.kafka.sasl.jaasConfig }}
+            - name: CONNECT_SASL_JAAS_CONFIG
+              value: {{ .Values.kafka.sasl.jaasConfig | quote }}
+            {{- end }}
             {{- end }}
             - name: KAFKA_HEAP_OPTS
               value: "-Xms{{ .Values.jvm.heapSize }} -Xmx{{ .Values.jvm.heapSize }}"
