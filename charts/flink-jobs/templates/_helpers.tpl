@@ -21,9 +21,13 @@
 
 {{- define "flink-jobs.labels" -}}
 helm.sh/chart: {{ include "flink-jobs.chart" . }}
+{{ include "flink-jobs.selectorLabels" . }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{- define "flink-jobs.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "flink-jobs.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
 {{- define "flink-jobs.serviceAccountName" -}}
