@@ -63,6 +63,10 @@ spec:
         {{- if .Values.plugins.enabled }}
         - name: install-plugins
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
           command:
             - sh
             - -c
@@ -90,6 +94,10 @@ spec:
         {{- if .Values.otelAgent.enabled }}
         - name: download-otel-agent
           image: {{ .Values.otelAgent.image | quote }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
           command:
             - sh
             - -c
@@ -103,6 +111,10 @@ spec:
         {{- if .Values.jmxExporter.enabled }}
         - name: download-jmx-exporter
           image: {{ .Values.jmxExporter.image | quote }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
           command:
             - sh
             - -c
