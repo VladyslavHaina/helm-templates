@@ -22,6 +22,13 @@ spec:
       {{- if .Values.scheduling.podAntiAffinity.enabled }}
       affinity:
         podAntiAffinity:
+          {{- if eq .Values.scheduling.podAntiAffinity.type "required" }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  {{- include "kafka-connect.selectorLabels" . | nindent 18 }}
+              topologyKey: {{ .Values.scheduling.podAntiAffinity.topologyKey }}
+          {{- else }}
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               podAffinityTerm:
@@ -29,6 +36,7 @@ spec:
                   matchLabels:
                     {{- include "kafka-connect.selectorLabels" . | nindent 20 }}
                 topologyKey: {{ .Values.scheduling.podAntiAffinity.topologyKey }}
+          {{- end }}
       {{- end }}
       {{- with .Values.scheduling.nodeSelector }}
       nodeSelector:
