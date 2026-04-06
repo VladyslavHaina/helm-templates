@@ -144,10 +144,10 @@ spec:
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.env }}
           env:
-            {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
-            {{- end }}
+          {{- end }}
           {{- if or .Values.envFrom .Values.configMap.enabled }}
           envFrom:
             {{- with .Values.envFrom }}

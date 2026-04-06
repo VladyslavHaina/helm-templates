@@ -141,11 +141,11 @@ spec:
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          {{- if or .Values.env .Values.envFrom .Values.configMap.enabled .Values.secrets.csi.syncAsKubernetesSecret.enabled }}
+          {{- with .Values.env }}
           env:
-            {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
-            {{- end }}
+          {{- end }}
+          {{- if or .Values.envFrom .Values.configMap.enabled .Values.secrets.csi.syncAsKubernetesSecret.enabled }}
           envFrom:
             {{- with .Values.envFrom }}
             {{- toYaml . | nindent 12 }}
