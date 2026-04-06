@@ -280,6 +280,7 @@ serviceAccount:
   create: true
   name: ""
   annotations: {}
+  automountServiceAccountToken: false
 
 # -- Pod scheduling
 scheduling:
