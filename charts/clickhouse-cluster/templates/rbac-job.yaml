@@ -14,9 +14,18 @@ spec:
   template:
     spec:
       restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       initContainers:
         - name: wait-for-clickhouse
           image: busybox:1.36
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
           command:
             - sh
             - -c
@@ -29,7 +38,12 @@ spec:
               echo "ClickHouse is ready."
       containers:
         - name: rbac-init
-          image: {{ .Values.rbacJob.image }}
+          image: {{ .Values.rbacJob.image | quote }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
           command:
             - sh
             - -c

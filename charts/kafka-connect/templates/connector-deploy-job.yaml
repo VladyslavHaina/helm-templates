@@ -19,9 +19,18 @@ spec:
         app.kubernetes.io/component: connector-deploy
     spec:
       restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: deploy-connectors
-          image: {{ .Values.connectorDeployJob.image }}
+          image: {{ .Values.connectorDeployJob.image | quote }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
           command:
             - sh
             - -c
