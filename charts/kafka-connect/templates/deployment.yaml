@@ -239,6 +239,18 @@ spec:
         {{- if .Values.connectorMonitor.enabled }}
         - name: connector-monitor
           image: {{ .Values.connectorMonitor.image | quote }}
+          resources:
+            limits:
+              cpu: 50m
+              memory: 64Mi
+            requests:
+              cpu: 10m
+              memory: 32Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
           command:
             - sh
             - -c
