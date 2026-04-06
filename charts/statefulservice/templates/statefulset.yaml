@@ -42,6 +42,16 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{- if .Values.scheduling.podAntiAffinity.enabled }}
       affinity:
+        {{- with .Values.scheduling.affinity }}
+        {{- if .nodeAffinity }}
+        nodeAffinity:
+          {{- toYaml .nodeAffinity | nindent 10 }}
+        {{- end }}
+        {{- if .podAffinity }}
+        podAffinity:
+          {{- toYaml .podAffinity | nindent 10 }}
+        {{- end }}
+        {{- end }}
         podAntiAffinity:
           {{- if eq .Values.scheduling.podAntiAffinity.type "required" }}
           requiredDuringSchedulingIgnoredDuringExecution:
