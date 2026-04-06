@@ -57,7 +57,8 @@ flinkConfiguration:
   execution.checkpointing.min-pause: "30000"
   execution.checkpointing.timeout: "600000"
   execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
-  web.cancel.enable: "true"
+  # WARNING: enabling web.cancel allows unauthenticated job cancellation via the Flink UI
+  web.cancel.enable: "false"
   # high-availability.type: kubernetes
   # high-availability.storageDir: s3://my-bucket/ha
 
