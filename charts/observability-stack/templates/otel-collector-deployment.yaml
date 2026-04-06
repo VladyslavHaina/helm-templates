@@ -27,6 +27,11 @@ spec:
       containers:
         - name: otel-collector
           image: {{ .Values.otelCollector.image | quote }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
           args: ["--config=/conf/otel-collector-config.yaml"]
           ports:
             - name: grpc

@@ -23,6 +23,10 @@ spec:
       containers:
         - name: mongodb
           image: {{ .Values.mongodb.image | quote }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
           ports:
             - name: mongodb
               containerPort: {{ .Values.mongodb.port }}
