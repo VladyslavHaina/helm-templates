@@ -259,6 +259,11 @@ service:
   port: 8083
   annotations: {}
 
+# -- Pod annotations
+podAnnotations: {}
+# -- Pod labels
+podLabels: {}
+
 # -- Environment variables
 env: []
 envFrom: []
