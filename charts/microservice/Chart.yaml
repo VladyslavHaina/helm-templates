@@ -3,4 +3,5 @@ name: microservice
 description: Production-ready microservice chart with Deployment, Service, HPA, PDB, Ingress, optional Istio VirtualService, secrets management, and observability
 version: 1.0.0
 type: application
+kubeVersion: ">=1.26.0-0"
 appVersion: "1.0.0"

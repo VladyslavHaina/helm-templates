@@ -3,4 +3,5 @@ name: worker
 description: Production-ready Job and CronJob chart for batch processing, migrations, and scheduled tasks
 version: 1.0.0
 type: application
+kubeVersion: ">=1.26.0-0"
 appVersion: "1.0.0"

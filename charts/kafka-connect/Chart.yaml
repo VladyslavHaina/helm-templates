@@ -3,4 +3,5 @@ name: kafka-connect
 description: Production-ready Kafka Connect chart with OTEL/JMX agent init containers, connector health monitoring sidecar, HPA, PDB, and configurable connectors
 version: 1.0.0
 type: application
+kubeVersion: ">=1.26.0-0"
 appVersion: "7.7.0"

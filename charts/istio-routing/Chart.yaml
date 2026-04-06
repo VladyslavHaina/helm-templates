@@ -3,4 +3,5 @@ name: istio-routing
 description: Istio traffic management chart with Gateway, VirtualService, DestinationRule, AuthorizationPolicy, and PeerAuthentication
 version: 1.0.0
 type: application
+kubeVersion: ">=1.26.0-0"
 appVersion: "1.0.0"

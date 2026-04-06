@@ -3,4 +3,5 @@ name: observability-stack
 description: Production-ready observability stack with OpenTelemetry Collector, configurable storage backend (ClickHouse, Elasticsearch), and UI (HyperDX, Grafana)
 version: 1.0.0
 type: application
+kubeVersion: ">=1.26.0-0"
 appVersion: "1.0.0"
