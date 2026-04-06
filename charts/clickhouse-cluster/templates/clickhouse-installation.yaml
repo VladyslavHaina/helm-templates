@@ -35,15 +35,17 @@ spec:
         {{- end }}
     {{- end }}
     users:
-      {{- if .Values.clickhouse.users.admin.password }}
-      admin/password: {{ .Values.clickhouse.users.admin.password | quote }}
+      {{- if .Values.clickhouse.users.admin.passwordSecret.name }}
+      admin/k8s_secret_password: {{ .Values.clickhouse.users.admin.passwordSecret.name }}/{{ .Values.clickhouse.users.admin.passwordSecret.key }}
       {{- end }}
       admin/networks/ip:
         {{- range .Values.clickhouse.users.admin.networks.ip }}
         - {{ . }}
         {{- end }}
       {{- range .Values.clickhouse.users.extra }}
-      {{ .name }}/password: {{ .password | default "" | quote }}
+      {{- if .passwordSecret }}
+      {{ .name }}/k8s_secret_password: {{ .passwordSecret.name }}/{{ .passwordSecret.key }}
+      {{- end }}
       {{- if .profile }}
       {{ .name }}/profile: {{ .profile }}
       {{- end }}

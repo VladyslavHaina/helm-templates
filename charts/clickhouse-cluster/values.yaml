@@ -41,14 +41,20 @@ clickhouse:
   # -- XML-level users (created at cluster startup)
   users:
     admin:
-      password: ""  # Use K8s Secret reference in production
+      # -- Use a Kubernetes Secret for the admin password (recommended)
+      # Create a secret with: kubectl create secret generic ch-admin --from-literal=password=<your-password>
+      passwordSecret:
+        name: ""   # Secret name containing the password
+        key: password  # Key within the secret
       networks:
         ip:
           - "10.0.0.0/8"
           - "172.16.0.0/12"
     extra: []
       # - name: app_user
-      #   password: ""
+      #   passwordSecret:
+      #     name: ch-app-user-secret
+      #     key: password
       #   profile: default
       #   quota: default
       #   networks:
