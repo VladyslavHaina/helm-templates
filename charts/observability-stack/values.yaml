@@ -97,7 +97,7 @@ ui:
   type: hyperdx  # hyperdx, grafana, or none
   hyperdx:
     enabled: true
-    image: hyperdx/hyperdx:latest
+    image: hyperdx/hyperdx:1.18.1
     replicas: 2
     resources:
       limits:
