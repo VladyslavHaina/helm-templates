@@ -96,7 +96,7 @@ authorizationPolicies: []
 
 # -- PeerAuthentication (mTLS settings)
 peerAuthentication:
-  enabled: false
+  enabled: true
   mtls:
     mode: STRICT  # STRICT, PERMISSIVE, DISABLE
 
