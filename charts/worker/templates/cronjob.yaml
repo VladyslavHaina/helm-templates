@@ -82,18 +82,23 @@ spec:
                     name: {{ include "worker.fullname" . }}
                 {{- end }}
               {{- end }}
-              {{- if or .Values.secrets.csi.enabled .Values.extraVolumeMounts }}
+              {{- if or .Values.secrets.csi.enabled .Values.secrets.kubernetes.enabled .Values.extraVolumeMounts }}
               volumeMounts:
                 {{- if .Values.secrets.csi.enabled }}
                 - name: secrets-store
                   mountPath: /mnt/secrets
                   readOnly: true
                 {{- end }}
+                {{- if .Values.secrets.kubernetes.enabled }}
+                - name: k8s-secret
+                  mountPath: {{ .Values.secrets.kubernetes.mountPath }}
+                  readOnly: {{ .Values.secrets.kubernetes.readOnly }}
+                {{- end }}
                 {{- with .Values.extraVolumeMounts }}
                 {{- toYaml . | nindent 16 }}
                 {{- end }}
               {{- end }}
-          {{- if or .Values.secrets.csi.enabled .Values.extraVolumes }}
+          {{- if or .Values.secrets.csi.enabled .Values.secrets.kubernetes.enabled .Values.extraVolumes }}
           volumes:
             {{- if .Values.secrets.csi.enabled }}
             - name: secrets-store
@@ -102,6 +107,11 @@ spec:
                 readOnly: true
                 volumeAttributes:
                   secretProviderClass: {{ include "worker.fullname" . }}
+            {{- end }}
+            {{- if .Values.secrets.kubernetes.enabled }}
+            - name: k8s-secret
+              secret:
+                secretName: {{ .Values.secrets.kubernetes.name }}
             {{- end }}
             {{- with .Values.extraVolumes }}
             {{- toYaml . | nindent 12 }}
