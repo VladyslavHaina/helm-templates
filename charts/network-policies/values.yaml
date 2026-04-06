@@ -5,9 +5,11 @@ fullnameOverride: ""
 denyAllIngress:
   enabled: true
 
-# -- Default deny all egress traffic
+# -- Default deny all egress traffic (zero-trust baseline)
+# When enabled, pods can only reach destinations explicitly allowed via allowEgressTo
+# DNS is allowed separately via allowDNS (enabled by default)
 denyAllEgress:
-  enabled: false
+  enabled: true
 
 # -- Allow same-namespace pod-to-pod traffic
 allowSameNamespace:
