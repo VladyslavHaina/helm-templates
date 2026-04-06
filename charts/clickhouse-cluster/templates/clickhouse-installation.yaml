@@ -88,7 +88,7 @@ spec:
         spec:
           containers:
             - name: clickhouse
-              image: {{ .Values.clickhouse.image }}
+              image: {{ .Values.clickhouse.image | quote }}
               resources:
                 {{- toYaml .Values.clickhouse.resources | nindent 16 }}
               ports:

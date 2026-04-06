@@ -22,7 +22,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: mongodb
-          image: {{ .Values.mongodb.image }}
+          image: {{ .Values.mongodb.image | quote }}
           ports:
             - name: mongodb
               containerPort: {{ .Values.mongodb.port }}

@@ -26,7 +26,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: otel-collector
-          image: {{ .Values.otelCollector.image }}
+          image: {{ .Values.otelCollector.image | quote }}
           args: ["--config=/conf/otel-collector-config.yaml"]
           ports:
             - name: grpc

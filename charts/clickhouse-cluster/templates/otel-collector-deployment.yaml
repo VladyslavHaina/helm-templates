@@ -25,7 +25,7 @@ spec:
       {{- end }}
       containers:
         - name: otel-collector
-          image: {{ .Values.otelCollector.image }}
+          image: {{ .Values.otelCollector.image | quote }}
           args:
             - --config=/conf/otel-collector-config.yaml
           ports:

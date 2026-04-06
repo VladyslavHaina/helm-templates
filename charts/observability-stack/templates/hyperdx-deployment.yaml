@@ -21,7 +21,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: hyperdx
-          image: {{ .Values.ui.hyperdx.image }}
+          image: {{ .Values.ui.hyperdx.image | quote }}
           ports:
             - name: http
               containerPort: {{ .Values.ui.hyperdx.service.port }}

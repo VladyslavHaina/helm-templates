@@ -82,7 +82,7 @@ spec:
         {{- end }}
         {{- if .Values.otelAgent.enabled }}
         - name: download-otel-agent
-          image: {{ .Values.otelAgent.image }}
+          image: {{ .Values.otelAgent.image | quote }}
           command:
             - sh
             - -c
@@ -95,7 +95,7 @@ spec:
         {{- end }}
         {{- if .Values.jmxExporter.enabled }}
         - name: download-jmx-exporter
-          image: {{ .Values.jmxExporter.image }}
+          image: {{ .Values.jmxExporter.image | quote }}
           command:
             - sh
             - -c
@@ -238,7 +238,7 @@ spec:
             {{- end }}
         {{- if .Values.connectorMonitor.enabled }}
         - name: connector-monitor
-          image: {{ .Values.connectorMonitor.image }}
+          image: {{ .Values.connectorMonitor.image | quote }}
           command:
             - sh
             - -c
